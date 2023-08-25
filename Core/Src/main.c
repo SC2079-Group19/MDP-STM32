@@ -1,20 +1,20 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2023 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2023 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
@@ -45,14 +45,17 @@
 /* Private variables ---------------------------------------------------------*/
  I2C_HandleTypeDef hi2c1;
 
+TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim8;
+
 UART_HandleTypeDef huart3;
 
-/* Definitions for defaultTask */
-osThreadId_t defaultTaskHandle;
-const osThreadAttr_t defaultTask_attributes = {
-  .name = "defaultTask",
+/* Definitions for encoderTask */
+osThreadId_t encoderTaskHandle;
+const osThreadAttr_t encoderTask_attributes = {
+  .name = "encoderTask",
   .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for OledTask */
 osThreadId_t OledTaskHandle;
@@ -61,17 +64,17 @@ const osThreadAttr_t OledTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for FSTask */
-osThreadId_t FSTaskHandle;
-const osThreadAttr_t FSTask_attributes = {
-  .name = "FSTask",
+/* Definitions for FWTask */
+osThreadId_t FWTaskHandle;
+const osThreadAttr_t FWTask_attributes = {
+  .name = "FWTask",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-/* Definitions for BSTask */
-osThreadId_t BSTaskHandle;
-const osThreadAttr_t BSTask_attributes = {
-  .name = "BSTask",
+/* Definitions for BWTask */
+osThreadId_t BWTaskHandle;
+const osThreadAttr_t BWTask_attributes = {
+  .name = "BWTask",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
@@ -124,13 +127,138 @@ const osThreadAttr_t cmdTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-/* Definitions for commandQ */
-osMessageQueueId_t commandQHandle;
-const osMessageQueueAttr_t commandQ_attributes = {
-  .name = "commandQ"
-};
 /* USER CODE BEGIN PV */
+uint8_t RX_BUFFER_SIZE = 5;
+uint8_t aRxBuffer[10];
 
+typedef struct _command {
+	uint8_t index;
+	uint16_t val;
+} Command;
+
+uint8_t CMD_BUFFER_SIZE = 12;
+typedef struct _commandQueue {
+	uint8_t head;
+	uint8_t tail;
+	uint8_t size;
+	Command buffer[12];
+} CommandQueue;
+
+CommandQueue cQueue;
+
+Command curCmd;
+uint8_t rxMsg[16];
+char ch[16];
+
+uint8_t manualMode = 0;
+
+// PID
+float targetAngle = 0;
+float angleNow = 0;
+uint8_t readGyroZData[2];
+int16_t gyroZ;
+uint16_t newDutyL, newDutyR;
+uint32_t last_curTask_tick = 0;
+
+float targetDist = 0;
+uint16_t curDistTick = 0;
+uint16_t targetDistTick = 0;
+uint16_t dist_dL = 0;
+uint16_t lastDistTick_L = 0;
+
+typedef struct _pidConfig {
+	float Kp;
+	float Ki;
+	float Kd;
+	float ek1;
+	float ekSum;
+} PIDConfig;
+
+PIDConfig pidSlow, pidTSlow, pidFast;
+
+typedef struct _commandConfig {
+	uint16_t leftDuty;
+	uint16_t rightDuty;
+	float servoTurnVal;
+	float targetAngle;
+	uint8_t direction;
+} CmdConfig;
+
+#define CONFIG_FL00 7
+#define CONFIG_FR00 8
+#define CONFIG_BL00 9
+#define CONFIG_BR00 10
+
+#define CONFIG_FL20 11
+#define CONFIG_FR20 12
+#define CONFIG_BL20 13
+#define CONFIG_BR20 14
+
+#define CONFIG_FL30 15
+#define CONFIG_FR30 16
+#define CONFIG_BL30 17
+#define CONFIG_BR30 18
+
+CmdConfig cfgs[19] = {
+	{0,0,SERVO_CENTER,0, DIR_FORWARD}, // STOP
+	{1200, 1200, SERVO_CENTER, 0, DIR_FORWARD}, // FW00
+	{1200, 1200, SERVO_CENTER, 0, DIR_BACKWARD}, // BW00
+
+	{800, 1200, 50, 0, DIR_FORWARD}, // FL--
+	{1200, 800, 115, 0, DIR_FORWARD}, // FR--
+	{800, 1200, 50, 0, DIR_BACKWARD}, // BL--
+	{1200, 800, 115, 0, DIR_BACKWARD}, // BR--
+
+	{700, 1800, 50, 89, DIR_FORWARD}, // FL00
+	{1800, 400, 115 ,-87, DIR_FORWARD}, // FR00
+	{500, 1700, 50, -88, DIR_BACKWARD}, // BL00
+	{1800, 500, 115, 89, DIR_BACKWARD}, // BR00,
+
+	{800, 1800, 51.85, 89, DIR_FORWARD}, // FL20
+	{1800, 900, 115 ,-87, DIR_FORWARD}, // FR20
+	{700, 1800, 50, -89, DIR_BACKWARD}, // BL20
+	{1800, 700, 115, 89, DIR_BACKWARD}, // BR20,
+
+	{1500, 1500, 53, 87.5, DIR_FORWARD}, // FL30
+	{1500, 1500, 108, -86.5, DIR_FORWARD}, // FR30
+	{1500, 1500, 51, -87.5, DIR_BACKWARD}, // BL30
+	{1500, 1100, 115, 88, DIR_BACKWARD}, // BR30
+};
+
+enum TASK_TYPE{
+	TASK_MOVE,
+	TASK_MOVE_BACKWARD,
+	TASK_FL,
+	TASK_FR,
+	TASK_BL,
+	TASK_BR,
+	TASK_ADC,
+	TASK_MOVE_OBS,
+	TASK_FASTESTPATH,
+	TASK_FASTESTPATH_V2,
+	TASK_BUZZER,
+	TASK_NONE
+};
+enum TASK_TYPE curTask = TASK_NONE, prevTask = TASK_NONE;
+
+enum MOVE_MODE {
+	SLOW,
+	FAST
+};
+ enum MOVE_MODE moveMode = FAST;
+
+
+uint16_t obsTick_IR = 0;
+
+float obsDist_IR = 0, obsDist_US = 0;
+//float IR_data_raw_acc = 0, dataPoint = 0;
+uint16_t dataPoint = 0; uint32_t IR_data_raw_acc = 0;
+float speedScale = 1;
+
+float batteryVal;
+
+// fastest path variable
+float obs_a, x, angle_left, angle_right;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -138,10 +266,12 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_I2C1_Init(void);
-void StartDefaultTask(void *argument);
+static void MX_TIM8_Init(void);
+static void MX_TIM2_Init(void);
+void runEncoder(void *argument);
 void runOledTask(void *argument);
-void runFS(void *argument);
-void runBSTask(void *argument);
+void runFWTask(void *argument);
+void runBWTask(void *argument);
 void runFLTask(void *argument);
 void runFRTask(void *argument);
 void runBLTask(void *argument);
@@ -189,8 +319,12 @@ int main(void)
   MX_GPIO_Init();
   MX_USART3_UART_Init();
   MX_I2C1_Init();
+  MX_TIM8_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   OLED_Init();
+  ICM20948_init(&hi2c1, 0, GYRO_FULL_SCALE_2000DPS);
+
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -208,26 +342,22 @@ int main(void)
   /* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
 
-  /* Create the queue(s) */
-  /* creation of commandQ */
-  commandQHandle = osMessageQueueNew (16, sizeof(uint16_t), &commandQ_attributes);
-
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* creation of defaultTask */
-  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+  /* creation of encoderTask */
+  encoderTaskHandle = osThreadNew(runEncoder, NULL, &encoderTask_attributes);
 
   /* creation of OledTask */
   OledTaskHandle = osThreadNew(runOledTask, NULL, &OledTask_attributes);
 
-  /* creation of FSTask */
-  FSTaskHandle = osThreadNew(runFS, NULL, &FSTask_attributes);
+  /* creation of FWTask */
+  FWTaskHandle = osThreadNew(runFWTask, NULL, &FWTask_attributes);
 
-  /* creation of BSTask */
-  BSTaskHandle = osThreadNew(runBSTask, NULL, &BSTask_attributes);
+  /* creation of BWTask */
+  BWTaskHandle = osThreadNew(runBWTask, NULL, &BWTask_attributes);
 
   /* creation of FLTask */
   FLTaskHandle = osThreadNew(runFLTask, NULL, &FLTask_attributes);
@@ -354,6 +484,133 @@ static void MX_I2C1_Init(void)
 }
 
 /**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_Encoder_InitTypeDef sConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 0;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 4294967295;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
+  sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC1Filter = 10;
+  sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC2Filter = 10;
+  if (HAL_TIM_Encoder_Init(&htim2, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
+  * @brief TIM8 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM8_Init(void)
+{
+
+  /* USER CODE BEGIN TIM8_Init 0 */
+
+  /* USER CODE END TIM8_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
+
+  /* USER CODE BEGIN TIM8_Init 1 */
+
+  /* USER CODE END TIM8_Init 1 */
+  htim8.Instance = TIM8;
+  htim8.Init.Prescaler = 0;
+  htim8.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim8.Init.Period = 7199;
+  htim8.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim8.Init.RepetitionCounter = 0;
+  htim8.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim8, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim8, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  if (HAL_TIM_PWM_ConfigChannel(&htim8, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_ConfigChannel(&htim8, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
+  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
+  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
+  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
+  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
+  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
+  if (HAL_TIMEx_ConfigBreakDeadTime(&htim8, &sBreakDeadTimeConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM8_Init 2 */
+
+  /* USER CODE END TIM8_Init 2 */
+
+}
+
+/**
   * @brief USART3 Initialization Function
   * @param None
   * @retval None
@@ -405,6 +662,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOE, OLED_SCL_Pin|OLED_SDA_Pin|OLED_RST_Pin|OLED_DC_Pin
                           |LED3_Pin, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, AIN2_Pin|AIN1_Pin|BIN1_Pin|BIN2_Pin, GPIO_PIN_RESET);
+
   /*Configure GPIO pins : OLED_SCL_Pin OLED_SDA_Pin OLED_RST_Pin OLED_DC_Pin
                            LED3_Pin */
   GPIO_InitStruct.Pin = OLED_SCL_Pin|OLED_SDA_Pin|OLED_RST_Pin|OLED_DC_Pin
@@ -414,25 +674,84 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : AIN2_Pin AIN1_Pin */
+  GPIO_InitStruct.Pin = AIN2_Pin|AIN1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : BIN1_Pin BIN2_Pin */
+  GPIO_InitStruct.Pin = BIN1_Pin|BIN2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
 }
 
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
 
-/* USER CODE BEGIN Header_StartDefaultTask */
+/* USER CODE BEGIN Header_runEncoder */
 /**
-  * @brief  Function implementing the defaultTask thread.
-  * @param  argument: Not used
-  * @retval None
-  */
-/* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void *argument)
+ * @brief  Function implementing the encoderTask thread.
+ * @param  argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_runEncoder */
+void runEncoder(void *argument)
 {
   /* USER CODE BEGIN 5 */
+  HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
+  int cnt1 = 0, cnt2 = 0, diff = 0;
+
+  uint32_t tick = 0;
+
+  cnt1 = __HAL_TIM_GET_COUNTER(&htim2);
+  tick = HAL_GetTick();
+
+  uint8_t encoderBuffer[20];
+  uint16_t dir = __HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2);
+
   /* Infinite loop */
-  for(;;)
+
+  for (;;)
   {
+    if (HAL_GetTick() - tick > 1000L)
+    {
+      cnt2 = __HAL_TIM_GET_COUNTER(&htim2);
+      if (__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2))
+      {
+        if (cnt2 < cnt1)
+        {
+          diff = cnt1 - cnt2;
+        }
+        else
+          diff = (65535 - cnt2) + cnt1;
+      }
+      else
+      {
+        if (cnt2 > cnt1)
+        {
+          diff = cnt2 - cnt1;
+        }
+        else
+          diff = (65535 - cnt1) + cnt2;
+      }
+
+      // display on oled
+      sprintf(encoderBuffer, "Speed:%5d\0", diff);
+      OLED_ShowString(10, 20, encoderBuffer);
+      sprintf(encoderBuffer, "Dir:%5d\0", dir);
+      OLED_ShowString(10, 30, encoderBuffer);
+
+      // OLED_Refresh_Gram();
+      cnt1 = __HAL_TIM_GET_COUNTER(&htim2);
+      tick = HAL_GetTick();
+    }
+
     osDelay(1);
   }
   /* USER CODE END 5 */
@@ -440,74 +759,102 @@ void StartDefaultTask(void *argument)
 
 /* USER CODE BEGIN Header_runOledTask */
 /**
-* @brief Function implementing the OledTask thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the OledTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_runOledTask */
 void runOledTask(void *argument)
 {
   /* USER CODE BEGIN runOledTask */
   /* Infinite loop */
-uint8_t content[20]="Hello world\0";
-  for(;;)
+  uint8_t content[20] = "Group 19\0";
+  for (;;)
   {
-	OLED_ShowString(10,10,content);
-	OLED_Refresh_Gram();
-    osDelay(1000);
-
+    OLED_ShowString(10, 10, content);
+    OLED_Refresh_Gram();
+    osDelay(1);
   }
   /* USER CODE END runOledTask */
 }
 
-/* USER CODE BEGIN Header_runFS */
+/* USER CODE BEGIN Header_runFWTask */
 /**
-* @brief Function implementing the FSTask thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_runFS */
-void runFS(void *argument)
+ * @brief Function implementing the FWTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_runFWTask */
+void runFWTask(void *argument)
 {
-  /* USER CODE BEGIN runFS */
+  /* USER CODE BEGIN runFWTask */
+  uint16_t pwmVal = 0;
+  // generate PWM signal
+  HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
   /* Infinite loop */
-  for(;;)
+  for (;;)
   {
-    osDelay(1);
-  }
-  /* USER CODE END runFS */
+
+    // // clockwise
+    // while (pwmVal < 4000)
+    // {
+    //   HAL_GPIO_WritePin(GPIOA, AIN2_Pin, GPIO_PIN_SET);
+    //   HAL_GPIO_WritePin(GPIOA, AIN1_Pin, GPIO_PIN_RESET);
+    //   HAL_GPIO_WritePin(GPIOA, BIN2_Pin, GPIO_PIN_SET);
+    //   HAL_GPIO_WritePin(GPIOA, BIN1_Pin, GPIO_PIN_RESET);
+    //   pwmVal++;
+    //   // Modify the comparison value for the duty cycle
+    //   __HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal);
+    //   __HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
+    //   osDelay(10);
+    // }
+    // // anti-clockwise
+    // while (pwmVal > 0)
+    // {
+    //   HAL_GPIO_WritePin(GPIOA, AIN2_Pin, GPIO_PIN_RESET); // change direction
+    //   HAL_GPIO_WritePin(GPIOA, AIN1_Pin, GPIO_PIN_SET);
+    //   HAL_GPIO_WritePin(GPIOA, BIN2_Pin, GPIO_PIN_RESET);
+    //   HAL_GPIO_WritePin(GPIOA, BIN1_Pin, GPIO_PIN_SET);
+    //   pwmVal--;
+    //   // Modify the comparison value for the duty cycle
+    //   __HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_1, pwmVal);
+    //   __HAL_TIM_SetCompare(&htim8, TIM_CHANNEL_2, pwmVal);
+    //   osDelay(10);
+     }
+    osDelay(1000);
+  /* USER CODE END runFWTask */
 }
 
-/* USER CODE BEGIN Header_runBSTask */
+/* USER CODE BEGIN Header_runBWTask */
 /**
-* @brief Function implementing the BSTask thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_runBSTask */
-void runBSTask(void *argument)
+ * @brief Function implementing the BWTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_runBWTask */
+void runBWTask(void *argument)
 {
-  /* USER CODE BEGIN runBSTask */
+  /* USER CODE BEGIN runBWTask */
   /* Infinite loop */
-  for(;;)
+  for (;;)
   {
     osDelay(1);
   }
-  /* USER CODE END runBSTask */
+  /* USER CODE END runBWTask */
 }
 
 /* USER CODE BEGIN Header_runFLTask */
 /**
-* @brief Function implementing the FLTask thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the FLTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_runFLTask */
 void runFLTask(void *argument)
 {
   /* USER CODE BEGIN runFLTask */
   /* Infinite loop */
-  for(;;)
+  for (;;)
   {
     osDelay(1);
   }
@@ -516,16 +863,16 @@ void runFLTask(void *argument)
 
 /* USER CODE BEGIN Header_runFRTask */
 /**
-* @brief Function implementing the FRTask thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the FRTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_runFRTask */
 void runFRTask(void *argument)
 {
   /* USER CODE BEGIN runFRTask */
   /* Infinite loop */
-  for(;;)
+  for (;;)
   {
     osDelay(1);
   }
@@ -534,16 +881,16 @@ void runFRTask(void *argument)
 
 /* USER CODE BEGIN Header_runBLTask */
 /**
-* @brief Function implementing the BLTask thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the BLTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_runBLTask */
 void runBLTask(void *argument)
 {
   /* USER CODE BEGIN runBLTask */
   /* Infinite loop */
-  for(;;)
+  for (;;)
   {
     osDelay(1);
   }
@@ -552,16 +899,16 @@ void runBLTask(void *argument)
 
 /* USER CODE BEGIN Header_runBRTask */
 /**
-* @brief Function implementing the BRTask thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the BRTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_runBRTask */
 void runBRTask(void *argument)
 {
   /* USER CODE BEGIN runBRTask */
   /* Infinite loop */
-  for(;;)
+  for (;;)
   {
     osDelay(1);
   }
@@ -570,16 +917,16 @@ void runBRTask(void *argument)
 
 /* USER CODE BEGIN Header_runADCTask */
 /**
-* @brief Function implementing the ADCTask thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the ADCTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_runADCTask */
 void runADCTask(void *argument)
 {
   /* USER CODE BEGIN runADCTask */
   /* Infinite loop */
-  for(;;)
+  for (;;)
   {
     osDelay(1);
   }
@@ -588,16 +935,16 @@ void runADCTask(void *argument)
 
 /* USER CODE BEGIN Header_runMoveDistTask */
 /**
-* @brief Function implementing the moveDistTask thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the moveDistTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_runMoveDistTask */
 void runMoveDistTask(void *argument)
 {
   /* USER CODE BEGIN runMoveDistTask */
   /* Infinite loop */
-  for(;;)
+  for (;;)
   {
     osDelay(1);
   }
@@ -606,16 +953,16 @@ void runMoveDistTask(void *argument)
 
 /* USER CODE BEGIN Header_runCmdTask */
 /**
-* @brief Function implementing the cmdTask thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the cmdTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_runCmdTask */
 void runCmdTask(void *argument)
 {
   /* USER CODE BEGIN runCmdTask */
   /* Infinite loop */
-  for(;;)
+  for (;;)
   {
     osDelay(1);
   }
