@@ -23,29 +23,30 @@
 #define __MAIN_H
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_hal.h"
 
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
+  /* Private includes ----------------------------------------------------------*/
+  /* USER CODE BEGIN Includes */
 
-/* USER CODE END Includes */
+  /* USER CODE END Includes */
 
-/* Exported types ------------------------------------------------------------*/
-/* USER CODE BEGIN ET */
+  /* Exported types ------------------------------------------------------------*/
+  /* USER CODE BEGIN ET */
 
-/* USER CODE END ET */
+  /* USER CODE END ET */
 
-/* Exported constants --------------------------------------------------------*/
-/* USER CODE BEGIN EC */
+  /* Exported constants --------------------------------------------------------*/
+  /* USER CODE BEGIN EC */
 
-/* USER CODE END EC */
+  /* USER CODE END EC */
 
-/* Exported macro ------------------------------------------------------------*/
-/* USER CODE BEGIN EM */
+  /* Exported macro ------------------------------------------------------------*/
+  /* USER CODE BEGIN EM */
 
 #define PI 3.141592654
 #define WHEEL_LENGTH 20
@@ -60,9 +61,12 @@ extern "C" {
 #define DIR_FORWARD 1
 #define DIR_BACKWARD 0
 
-#define SERVO_LEFT_MAX 50
-#define SERVO_CENTER 74
-#define SERVO_RIGHT_MAX 115
+#define SERVO_TURN_TIME 300
+
+// TODO:calibrate
+#define SERVO_LEFT_MAX 105
+#define SERVO_CENTER 146
+#define SERVO_RIGHT_MAX 210
 
 #define INIT_DUTY_SPT_L 1200
 #define INIT_DUTY_SPT_R 1200
@@ -75,6 +79,9 @@ extern "C" {
 #define INIT_DUTY_SP2_L 3000
 #define INIT_DUTY_SP2_R 3000
 #define DUTY_SP2_RANGE 700
+
+#define SELECT_I2C_ADDRESS 0
+#define ACC_REG_NUM 6
 
 // command queue
 #define __SET_CMD_CONFIG(cfg, _MTIMER, _STIMER, targetAngle) ({ \
@@ -97,6 +104,17 @@ extern "C" {
 
 #define __PEND_CURCMD(cmd) ({ \
   cmd.index = 99;             \
+})
+
+#define __ON_TASK_END(_MTimer, prevTask, curTask) ({ \
+  __SET_MOTOR_DUTY(_MTimer, 0, 0);                   \
+  prevTask = curTask;                                \
+  curTask = TASK_NONE;                               \
+})
+
+#define __ACK_TASK_DONE(_UART, msg) ({                        \
+  snprintf((char *)msg, sizeof(msg) - 1, "done!");            \
+  HAL_UART_Transmit(_UART, (uint8_t *)"ACK|\r\n", 6, 0xFFFF); \
 })
 
 // FIFO
@@ -163,17 +181,17 @@ extern "C" {
   HAL_Delay(200);                          \
 })
 
-#define __SET_SERVO_TURN_MAX(_TIMER, _DIR) ({   \
-  if (_DIR)                                     \
-    (_TIMER)->Instance->CCR4 = SERVO_RIGHT_MAX; \
-  else                                          \
-    (_TIMER)->Instance->CCR4 = SERVO_LEFT_MAX;  \
-  HAL_Delay(SERVO_TURN_TIME);                   \
+#define __SET_SERVO_TURN_MAX(_TIMER, _DIR_RIGHT) ({ \
+  if (_DIR_RIGHT)                                   \
+    (_TIMER)->Instance->CCR4 = SERVO_RIGHT_MAX;     \
+  else                                              \
+    (_TIMER)->Instance->CCR4 = SERVO_LEFT_MAX;      \
+  HAL_Delay(SERVO_TURN_TIME);                       \
 })
 
 #define __SET_SERVO_TURN(_TIMER, AMT) ({ \
 	(_TIMER)->Instance->CCR4 = ((AMT) > SERVO_RIGHT_MAX) ? SERVO_RIGHT_MAX : ((AMT) < SERVO_LEFT_MAX ? SERVO_LEFT_MAX : (AMT));\
-	HAL_Delay(SERVO_TURN_TIME); })
+	osDelay(SERVO_TURN_TIME); })
 
 // motor
 #define __SET_MOTOR_DIRECTION(DIR) ({                                          \
@@ -227,10 +245,12 @@ extern "C" {
 })
   //
 
-/* USER CODE END EM */
+  /* USER CODE END EM */
 
-/* Exported functions prototypes ---------------------------------------------*/
-void Error_Handler(void);
+  void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+
+  /* Exported functions prototypes ---------------------------------------------*/
+  void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 
@@ -259,9 +279,9 @@ void Error_Handler(void);
 #define PWMA_GPIO_Port GPIOC
 #define PWMB_Pin GPIO_PIN_7
 #define PWMB_GPIO_Port GPIOC
-/* USER CODE BEGIN Private defines */
+  /* USER CODE BEGIN Private defines */
 
-/* USER CODE END Private defines */
+  /* USER CODE END Private defines */
 
 #ifdef __cplusplus
 }
