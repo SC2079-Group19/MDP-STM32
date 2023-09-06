@@ -50,6 +50,10 @@ extern "C"
 
 #define PI 3.141592654
 #define WHEEL_LENGTH 20
+#define WHEEL_DIAMETER 6.5 // in cm
+
+#define REDUCER_RATIO 30
+#define PPR 11
 
 #define DIST_M 1.150067316
 #define DIST_C 0.965311399
@@ -64,9 +68,13 @@ extern "C"
 #define SERVO_TURN_TIME 300
 
 // TODO:calibrate
-#define SERVO_LEFT_MAX 105
-#define SERVO_CENTER 145
-#define SERVO_RIGHT_MAX 210
+#define SERVO_LEFT_MAX 85
+#define SERVO_CENTER 142
+#define SERVO_RIGHT_MAX 225
+
+#define IR_CONST_A 25644.81557
+#define IR_CONST_B 260.4233354
+#define IR_SAMPLE 100
 
 #define INIT_DUTY_SPT_L 1200
 #define INIT_DUTY_SPT_R 1200
@@ -80,10 +88,130 @@ extern "C"
 #define INIT_DUTY_SP2_R 3000
 #define DUTY_SP2_RANGE 700
 
-#define SELECT_I2C_ADDRESS 0
-#define ACC_REG_NUM 6
+#define MIN_SPEED_SCALE 0.4 // INIT_DUTY_SP1_L / INIT_DUTY_SP2_L
 
-// command queue
+#define SERVO_TURN_TIME 300
+
+#define __GET_TARGETTICK(dist, targetTick) ({                         \
+  targetTick = (((dist)*DIST_M - DIST_C) / WHEEL_LENGTH * 1320) - 10; \
+})
+
+  // #define __GET_TARGETTICK( dist, targetTick) ({                          \
+//   targetTick = ((dist)*PPR) / (2 * PI * PI * WHEEL_DIAMETER * REDUCER_RATIO); \
+// })
+
+  // #define __GET_TARGETTICK(speed, dist, targetTick) ({targetTick = ((dist) / (curSpeed * WHEEL_DIAMETER))})
+
+#define __delay_us(_TIMER4, time) ({            \
+  __HAL_TIM_SET_COUNTER(_TIMER4, 0);            \
+  while (__HAL_TIM_GET_COUNTER(_TIMER4) < time) \
+    ;                                           \
+})
+
+#define __SET_MOTOR_DIRECTION(DIR) ({                                          \
+  HAL_GPIO_WritePin(GPIOA, AIN2_Pin, ((DIR) ? GPIO_PIN_RESET : GPIO_PIN_SET)); \
+  HAL_GPIO_WritePin(GPIOA, AIN1_Pin, ((DIR) ? GPIO_PIN_SET : GPIO_PIN_RESET)); \
+  HAL_GPIO_WritePin(GPIOA, BIN2_Pin, ((DIR) ? GPIO_PIN_RESET : GPIO_PIN_SET)); \
+  HAL_GPIO_WritePin(GPIOA, BIN1_Pin, ((DIR) ? GPIO_PIN_SET : GPIO_PIN_RESET)); \
+})
+
+#define __RESET_SERVO_TURN(_TIMER) ({      \
+  (_TIMER)->Instance->CCR4 = SERVO_CENTER; \
+  HAL_Delay(SERVO_TURN_TIME);              \
+})
+
+#define __RESET_SERVO_TURN_FAST(_TIMER) ({ \
+  (_TIMER)->Instance->CCR4 = SERVO_CENTER; \
+  HAL_Delay(200);                          \
+})
+
+#define __SET_SERVO_TURN_MAX(_TIMER, _DIR) ({   \
+  if (_DIR)                                     \
+    (_TIMER)->Instance->CCR4 = SERVO_RIGHT_MAX; \
+  else                                          \
+    (_TIMER)->Instance->CCR4 = SERVO_LEFT_MAX;  \
+  HAL_Delay(SERVO_TURN_TIME);                   \
+})
+
+#define __SET_SERVO_TURN(_TIMER, AMT) ({                                                                                      \
+  (_TIMER)->Instance->CCR4 = ((AMT) > SERVO_RIGHT_MAX) ? SERVO_RIGHT_MAX : ((AMT) < SERVO_LEFT_MAX ? SERVO_LEFT_MAX : (AMT)); \
+  HAL_Delay(SERVO_TURN_TIME);                                                                                                 \
+})
+
+#define __PID_Config_Reset(cfg) ({ \
+  cfg.ek1 = 0;                     \
+  cfg.ekSum = 0;                   \
+})
+
+#define __Gyro_Read_Z(_I2C, readGyroData, gyroZ) ({                                                                                                        \
+  HAL_I2C_Mem_Read(_I2C, ICM20948__I2C_SLAVE_ADDRESS_1 << 1, ICM20948__USER_BANK_0__GYRO_ZOUT_H__REGISTER, I2C_MEMADD_SIZE_8BIT, readGyroData, 2, 0xFFFF); \
+  gyroZ = readGyroData[0] << 8 | readGyroData[1];                                                                                                          \
+})
+
+#define __ADC_Read_Dist(_ADC, dataPoint, IR_data_raw_acc, obsDist, obsTick) ({ \
+  HAL_ADC_Start(_ADC);                                                         \
+  HAL_ADC_PollForConversion(_ADC, 20);                                         \
+  IR_data_raw_acc += HAL_ADC_GetValue(_ADC);                                   \
+  dataPoint = (dataPoint + 1) % IR_SAMPLE;                                     \
+  if (dataPoint == IR_SAMPLE - 1)                                              \
+  {                                                                            \
+    obsDist = IR_CONST_A / (IR_data_raw_acc / dataPoint - IR_CONST_B);         \
+    obsTick = IR_data_raw_acc / dataPoint;                                     \
+    IR_data_raw_acc = 0;                                                       \
+  }                                                                            \
+})
+
+#define __PID_SPEED_T(cfg, error, correction, dir, newDutyL, newDutyR) ({                                                    \
+  correction = (cfg).Kp * error + (cfg).Ki * (cfg).ekSum + (cfg).Kd * ((cfg).ek1 - error);                                   \
+  (cfg).ek1 = error;                                                                                                         \
+  (cfg).ekSum += error;                                                                                                      \
+  correction = correction > DUTY_SPT_RANGE ? DUTY_SPT_RANGE : (correction < -DUTY_SPT_RANGE ? -DUTY_SPT_RANGE : correction); \
+  newDutyL = INIT_DUTY_SPT_L + correction * dir;                                                                             \
+  newDutyR = INIT_DUTY_SPT_R - correction * dir;                                                                             \
+})
+
+#define __PID_SPEED_1(cfg, error, correction, dir, newDutyL, newDutyR) ({                                                    \
+  correction = (cfg).Kp * error + (cfg).Ki * (cfg).ekSum + (cfg).Kd * ((cfg).ek1 - error);                                   \
+  (cfg).ek1 = error;                                                                                                         \
+  (cfg).ekSum += error;                                                                                                      \
+  correction = correction > DUTY_SP1_RANGE ? DUTY_SP1_RANGE : (correction < -DUTY_SP1_RANGE ? -DUTY_SP1_RANGE : correction); \
+  newDutyL = INIT_DUTY_SP1_L + correction * dir;                                                                             \
+  newDutyR = INIT_DUTY_SP1_R - correction * dir;                                                                             \
+})
+
+#define __PID_SPEED_2(cfg, error, correction, dir, newDutyL, newDutyR) ({                                                    \
+  correction = (cfg).Kp * error + (cfg).Ki * (cfg).ekSum + (cfg).Kd * ((cfg).ek1 - error);                                   \
+  (cfg).ek1 = error;                                                                                                         \
+  (cfg).ekSum += error;                                                                                                      \
+  correction = correction > DUTY_SP2_RANGE ? DUTY_SP2_RANGE : (correction < -DUTY_SP2_RANGE ? -DUTY_SP2_RANGE : correction); \
+  newDutyL = INIT_DUTY_SP2_L + correction * dir;                                                                             \
+  newDutyR = INIT_DUTY_SP2_R - correction * dir;                                                                             \
+})
+
+  /*
+  #define __PID_Speed(cfg, actual, target, newDutyL, newDutyR) ({ \
+    cfg.ekSum += target - actual; \
+    newDutyL *= 1 + (target - actual) / target * cfg.Kp; \
+    newDutyR *= 1 + (target - actual)/ target * cfg.Kp; \
+  })
+  */
+
+#define __ON_TASK_END(_MTimer, prevTask, curTask) ({ \
+  __SET_MOTOR_DUTY(_MTimer, 0, 0);                   \
+  prevTask = curTask;                                \
+  curTask = TASK_NONE;                               \
+})
+
+#define __ACK_TASK_DONE(_UART, msg) ({                        \
+  snprintf((char *)msg, sizeof(msg) - 1, "done!");            \
+  HAL_UART_Transmit(_UART, (uint8_t *)"ACK|\r\n", 6, 0xFFFF); \
+})
+
+#define __SET_MOTOR_DUTY(_TIMER, DUTY_L, DUTY_R) ({ \
+  (_TIMER)->Instance->CCR1 = DUTY_L;                \
+  (_TIMER)->Instance->CCR2 = DUTY_R;                \
+})
+
 #define __SET_CMD_CONFIG(cfg, _MTIMER, _STIMER, targetAngle) ({ \
   __SET_SERVO_TURN(_STIMER, (cfg).servoTurnVal);                \
   targetAngle = (cfg).targetAngle;                              \
@@ -106,15 +234,26 @@ extern "C"
   cmd.index = 99;             \
 })
 
-#define __ON_TASK_END(_MTimer, prevTask, curTask) ({ \
-  __SET_MOTOR_DUTY(_MTimer, 0, 0);                   \
-  prevTask = curTask;                                \
-  curTask = TASK_NONE;                               \
+#define __SET_ENCODER_LAST_TICK(_TIMER, LAST_TICK) ({ \
+  LAST_TICK = __HAL_TIM_GET_COUNTER(_TIMER);          \
 })
 
-#define __ACK_TASK_DONE(_UART, msg) ({                        \
-  snprintf((char *)msg, sizeof(msg) - 1, "done!");            \
-  HAL_UART_Transmit(_UART, (uint8_t *)"ACK|\r\n", 6, 0xFFFF); \
+#define __SET_ENCODER_LAST_TICK_L_R(_TIMER_L, LAST_TICK_L, _TIMER_R, LAST_TICK_R) ({ \
+  __SET_ENCODER_LAST_TICK(_TIMER_L, LAST_TICK_L);                                    \
+  __SET_ENCODER_LAST_TICK(_TIMER_R, LAST_TICK_R);                                    \
+})
+
+#define __GET_ENCODER_TICK_DELTA(_TIMER, LAST_TICK, _DIST) ({                                \
+  uint32_t CUR_TICK = __HAL_TIM_GET_COUNTER(_TIMER);                                         \
+  if (__HAL_TIM_IS_TIM_COUNTING_DOWN(_TIMER))                                                \
+  {                                                                                          \
+    _DIST = (CUR_TICK <= LAST_TICK) ? LAST_TICK - CUR_TICK : (65535 - CUR_TICK) + LAST_TICK; \
+  }                                                                                          \
+  else                                                                                       \
+  {                                                                                          \
+    _DIST = (CUR_TICK >= LAST_TICK) ? CUR_TICK - LAST_TICK : (65535 - LAST_TICK) + CUR_TICK; \
+  }                                                                                          \
+  LAST_TICK = CUR_TICK;                                                                      \
 })
 
 // FIFO
@@ -136,114 +275,6 @@ extern "C"
   _CQ.buffer[_CQ.head].val = TASK_VAL;              \
   _CQ.head = (_CQ.head + 1) % _CQ.size;             \
 })
-
-// tick
-#define __GET_TARGETTICK(dist, targetTick) ({                         \
-  targetTick = (((dist)*DIST_M - DIST_C) / WHEEL_LENGTH * 1320) - 10; \
-})
-
-#define __delay_us(_TIMER4, time) ({            \
-  __HAL_TIM_SET_COUNTER(_TIMER4, 0);            \
-  while (__HAL_TIM_GET_COUNTER(_TIMER4) < time) \
-    ;                                           \
-})
-
-#define __SET_ENCODER_LAST_TICK(_TIMER, LAST_TICK) ({ \
-  LAST_TICK = __HAL_TIM_GET_COUNTER(_TIMER);          \
-})
-
-#define __SET_ENCODER_LAST_TICK_L_R(_TIMER_L, LAST_TICK_L, _TIMER_R, LAST_TICK_R) ({ \
-  __SET_ENCODER_LAST_TICKS(_TIMER_L, LAST_TICK_L);                                   \
-  __SET_ENCODER_LAST_TICKS(_TIMER_R, LAST_TICK_R);                                   \
-})
-
-#define __GET_ENCODER_TICK_DELTA(_TIMER, LAST_TICK, _DIST) ({                                \
-  uint32_t CUR_TICK = __HAL_TIM_GET_COUNTER(_TIMER);                                         \
-  if (__HAL_TIM_IS_TIM_COUNTING_DOWN(_TIMER))                                                \
-  {                                                                                          \
-    _DIST = (CUR_TICK <= LAST_TICK) ? LAST_TICK - CUR_TICK : (65535 - CUR_TICK) + LAST_TICK; \
-  }                                                                                          \
-  else                                                                                       \
-  {                                                                                          \
-    _DIST = (CUR_TICK >= LAST_TICK) ? CUR_TICK - LAST_TICK : (65535 - LAST_TICK) + CUR_TICK; \
-  }                                                                                          \
-  LAST_TICK = CUR_TICK;                                                                      \
-})
-
-// servo
-#define __RESET_SERVO_TURN(_TIMER) ({      \
-  (_TIMER)->Instance->CCR4 = SERVO_CENTER; \
-  HAL_Delay(SERVO_TURN_TIME);              \
-})
-
-#define __RESET_SERVO_TURN_FAST(_TIMER) ({ \
-  (_TIMER)->Instance->CCR4 = SERVO_CENTER; \
-  HAL_Delay(200);                          \
-})
-
-#define __SET_SERVO_TURN_MAX(_TIMER, _DIR_RIGHT) ({ \
-  if (_DIR_RIGHT)                                   \
-    (_TIMER)->Instance->CCR4 = SERVO_RIGHT_MAX;     \
-  else                                              \
-    (_TIMER)->Instance->CCR4 = SERVO_LEFT_MAX;      \
-  HAL_Delay(SERVO_TURN_TIME);                       \
-})
-
-#define __SET_SERVO_TURN(_TIMER, AMT) ({ \
-	(_TIMER)->Instance->CCR4 = ((AMT) > SERVO_RIGHT_MAX) ? SERVO_RIGHT_MAX : ((AMT) < SERVO_LEFT_MAX ? SERVO_LEFT_MAX : (AMT));\
-	osDelay(SERVO_TURN_TIME); })
-
-// motor
-#define __SET_MOTOR_DIRECTION(DIR) ({                                          \
-  HAL_GPIO_WritePin(GPIOA, AIN2_Pin, ((DIR) ? GPIO_PIN_RESET : GPIO_PIN_SET)); \
-  HAL_GPIO_WritePin(GPIOA, AIN1_Pin, ((DIR) ? GPIO_PIN_SET : GPIO_PIN_RESET)); \
-  HAL_GPIO_WritePin(GPIOA, BIN2_Pin, ((DIR) ? GPIO_PIN_RESET : GPIO_PIN_SET)); \
-  HAL_GPIO_WritePin(GPIOA, BIN1_Pin, ((DIR) ? GPIO_PIN_SET : GPIO_PIN_RESET)); \
-})
-
-#define __SET_MOTOR_DUTY(_TIMER, DUTY_L, DUTY_R) ({ \
-  (_TIMER)->Instance->CCR1 = DUTY_L;                \
-  (_TIMER)->Instance->CCR2 = DUTY_R;                \
-})
-
-// gyro
-#define __Gyro_Read_Z(_I2C, readGyroData, gyroZ) ({                                                                                                        \
-  HAL_I2C_Mem_Read(_I2C, ICM20948__I2C_SLAVE_ADDRESS_1 << 1, ICM20948__USER_BANK_0__GYRO_ZOUT_H__REGISTER, I2C_MEMADD_SIZE_8BIT, readGyroData, 2, 0xFFFF); \
-  gyroZ = readGyroData[0] << 8 | readGyroData[1];                                                                                                          \
-})
-
-// pid controller
-#define __PID_Config_Reset(cfg) ({ \
-  cfg.ek1 = 0;                     \
-  cfg.ekSum = 0;                   \
-})
-
-#define __PID_SPEED_T(cfg, error, correction, dir, newDutyL, newDutyR) ({                                                    \
-  correction = (cfg).Kp * error + (cfg).Ki * (cfg).ekSum + (cfg).Kd * ((cfg).ek1 - error);                                   \
-  (cfg).ek1 = error;                                                                                                         \
-  (cfg).ekSum += error;                                                                                                      \
-  correction = correction > DUTY_SPT_RANGE ? DUTY_SPT_RANGE : (correction < -DUTY_SPT_RANGE ? -DUTY_SPT_RANGE : correction); \
-  newDutyL = INIT_DUTY_SPT_L + correction * dir;                                                                             \
-  newDutyR = INIT_DUTY_SPT_R - correction * dir;                                                                             \
-})
-#define __PID_SPEED_1(cfg, error, correction, dir, newDutyL, newDutyR) ({                                                    \
-  correction = (cfg).Kp * error + (cfg).Ki * (cfg).ekSum + (cfg).Kd * ((cfg).ek1 - error);                                   \
-  (cfg).ek1 = error;                                                                                                         \
-  (cfg).ekSum += error;                                                                                                      \
-  correction = correction > DUTY_SP1_RANGE ? DUTY_SP1_RANGE : (correction < -DUTY_SP1_RANGE ? -DUTY_SP1_RANGE : correction); \
-  newDutyL = INIT_DUTY_SP1_L + correction * dir;                                                                             \
-  newDutyR = INIT_DUTY_SP1_R - correction * dir;                                                                             \
-})
-
-#define __PID_SPEED_2(cfg, error, correction, dir, newDutyL, newDutyR) ({                                                    \
-  correction = (cfg).Kp * error + (cfg).Ki * (cfg).ekSum + (cfg).Kd * ((cfg).ek1 - error);                                   \
-  (cfg).ek1 = error;                                                                                                         \
-  (cfg).ekSum += error;                                                                                                      \
-  correction = correction > DUTY_SP2_RANGE ? DUTY_SP2_RANGE : (correction < -DUTY_SP2_RANGE ? -DUTY_SP2_RANGE : correction); \
-  newDutyL = INIT_DUTY_SP2_L + correction * dir;                                                                             \
-  newDutyR = INIT_DUTY_SP2_R - correction * dir;                                                                             \
-})
-  //
 
   /* USER CODE END EM */
 
