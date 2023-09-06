@@ -65,7 +65,7 @@ extern "C"
 
 // TODO:calibrate
 #define SERVO_LEFT_MAX 105
-#define SERVO_CENTER 146
+#define SERVO_CENTER 145
 #define SERVO_RIGHT_MAX 210
 
 #define INIT_DUTY_SPT_L 1200

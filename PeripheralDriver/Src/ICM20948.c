@@ -236,7 +236,7 @@ void ICM20948_readGyroscope_Z(I2C_HandleTypeDef *hi2c, uint8_t const selectI2cAd
 	_ICM20948_BrustRead(hi2c, selectI2cAddress, ICM20948__USER_BANK_0__GYRO_ZOUT_H__REGISTER, 2, readGyroDataZ);
 
 	*gyroZ = readGyroDataZ[0] << 8 | readGyroDataZ[1];
-	*gyroZ /= GRYO_SENSITIVITY_SCALE_FACTOR_250DPS;
+	*gyroZ /= GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS;
 }
 
 void ICM20948_readAccelerometer_allAxises(I2C_HandleTypeDef *hi2c, uint8_t const selectI2cAddress, uint8_t const selectAccelSensitivity, int16_t readings[3])
@@ -253,30 +253,29 @@ void ICM20948_readAccelerometer_allAxises(I2C_HandleTypeDef *hi2c, uint8_t const
 	readings[Y] = readData[Y_HIGH_BYTE] << 8 | readData[Y_LOW_BYTE];
 	readings[Z] = readData[Z_HIGH_BYTE] << 8 | readData[Z_LOW_BYTE];
 
-	// Get rid of gravitational acceleration conversion, only raw values are needed:
-	//  switch (selectAccelSensitivity)
-	//  {
-	//  case ACCEL_FULL_SCALE_2G:
-	//  	readings[X] /= ACCEL_SENSITIVITY_SCALE_FACTOR_2G;
-	//  	readings[Y] /= ACCEL_SENSITIVITY_SCALE_FACTOR_2G;
-	//  	readings[Z] /= ACCEL_SENSITIVITY_SCALE_FACTOR_2G;
-	//  	break;
-	//  case ACCEL_FULL_SCALE_4G:
-	//  	readings[X] /= ACCEL_SENSITIVITY_SCALE_FACTOR_4G;
-	//  	readings[Y] /= ACCEL_SENSITIVITY_SCALE_FACTOR_4G;
-	//  	readings[Z] /= ACCEL_SENSITIVITY_SCALE_FACTOR_4G;
-	//  	break;
-	//  case ACCEL_FULL_SCALE_8G:
-	//  	readings[X] /= ACCEL_SENSITIVITY_SCALE_FACTOR_8G;
-	//  	readings[Y] /= ACCEL_SENSITIVITY_SCALE_FACTOR_8G;
-	//  	readings[Z] /= ACCEL_SENSITIVITY_SCALE_FACTOR_8G;
-	//  	break;
-	//  case ACCEL_FULL_SCALE_16G:
-	//  	readings[X] /= ACCEL_SENSITIVITY_SCALE_FACTOR_16G;
-	//  	readings[Y] /= ACCEL_SENSITIVITY_SCALE_FACTOR_16G;
-	//  	readings[Z] /= ACCEL_SENSITIVITY_SCALE_FACTOR_16G;
-	//  	break;
-	//  }
+	switch (selectAccelSensitivity)
+	{
+	case ACCEL_FULL_SCALE_2G:
+		readings[X] /= ACCEL_SENSITIVITY_SCALE_FACTOR_2G;
+		readings[Y] /= ACCEL_SENSITIVITY_SCALE_FACTOR_2G;
+		readings[Z] /= ACCEL_SENSITIVITY_SCALE_FACTOR_2G;
+		break;
+	case ACCEL_FULL_SCALE_4G:
+		readings[X] /= ACCEL_SENSITIVITY_SCALE_FACTOR_4G;
+		readings[Y] /= ACCEL_SENSITIVITY_SCALE_FACTOR_4G;
+		readings[Z] /= ACCEL_SENSITIVITY_SCALE_FACTOR_4G;
+		break;
+	case ACCEL_FULL_SCALE_8G:
+		readings[X] /= ACCEL_SENSITIVITY_SCALE_FACTOR_8G;
+		readings[Y] /= ACCEL_SENSITIVITY_SCALE_FACTOR_8G;
+		readings[Z] /= ACCEL_SENSITIVITY_SCALE_FACTOR_8G;
+		break;
+	case ACCEL_FULL_SCALE_16G:
+		readings[X] /= ACCEL_SENSITIVITY_SCALE_FACTOR_16G;
+		readings[Y] /= ACCEL_SENSITIVITY_SCALE_FACTOR_16G;
+		readings[Z] /= ACCEL_SENSITIVITY_SCALE_FACTOR_16G;
+		break;
+	}
 }
 
 void ICM20948_readTemperature(I2C_HandleTypeDef *hi2c, uint8_t const selectI2cAddress, int16_t *reading)

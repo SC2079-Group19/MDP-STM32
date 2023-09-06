@@ -7,7 +7,7 @@
 ../PeripheralDriver/Src/ICM20948.c:120:6:ICM20948_init	1
 ../PeripheralDriver/Src/ICM20948.c:191:6:ICM20948_readGyroscope_allAxises	5
 ../PeripheralDriver/Src/ICM20948.c:230:6:ICM20948_readGyroscope_Z	1
-../PeripheralDriver/Src/ICM20948.c:242:6:ICM20948_readAccelerometer_allAxises	1
+../PeripheralDriver/Src/ICM20948.c:242:6:ICM20948_readAccelerometer_allAxises	17
 ../PeripheralDriver/Src/ICM20948.c:281:6:ICM20948_readTemperature	1
 ../PeripheralDriver/Src/ICM20948.c:293:19:_AK09918_BrustRead	1
 ../PeripheralDriver/Src/ICM20948.c:309:19:_AK09918_WriteByte	1
