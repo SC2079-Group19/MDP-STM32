@@ -49,6 +49,7 @@ I2C_HandleTypeDef hi2c1;
 
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim8;
 
 UART_HandleTypeDef huart3;
@@ -292,6 +293,7 @@ static void MX_I2C1_Init(void);
 static void MX_TIM8_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM1_Init(void);
+static void MX_TIM3_Init(void);
 void runEncoder(void *argument);
 void runOledTask(void *argument);
 void runFWTask(void *argument);
@@ -310,10 +312,10 @@ void PIDConfigReset(PIDConfig *cfg);
 void StraightLineMove(const uint8_t speedMode);
 void StraightLineMoveSpeedScale(const uint8_t speedMode, float *speedScale);
 void RobotMoveDist(float *targetDist, const uint8_t dir, const uint8_t speedMode);
-void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode);
+// void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode);
 
 void RobotTurn(float *targetAngle);
-void RobotTurnFastest(float *targetAngle);
+// void RobotTurnFastest(float *targetAngle);
 
 void HCSR04_Read(void);
 
@@ -357,6 +359,7 @@ int main(void)
   MX_TIM8_Init();
   MX_TIM2_Init();
   MX_TIM1_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
   // oled
@@ -380,8 +383,8 @@ int main(void)
   HAL_UART_Receive_IT(&huart3, aRxBuffer, RX_BUFFER_SIZE);
 
   // ultrasonic
-  HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1);
-  HAL_TIM_Base_Start(&htim1);
+  HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2);
+  // HAL_TIM_Base_Start(&htim1);
 
   __RESET_SERVO_TURN(&htim1);
 
@@ -576,7 +579,6 @@ static void MX_TIM1_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_IC_InitTypeDef sConfigIC = {0};
   TIM_OC_InitTypeDef sConfigOC = {0};
   TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
 
@@ -599,10 +601,6 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  if (HAL_TIM_IC_Init(&htim1) != HAL_OK)
-  {
-    Error_Handler();
-  }
   if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
   {
     Error_Handler();
@@ -610,14 +608,6 @@ static void MX_TIM1_Init(void)
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
-  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
-  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 0;
-  if (HAL_TIM_IC_ConfigChannel(&htim1, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -694,6 +684,53 @@ static void MX_TIM2_Init(void)
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
+}
+
+/**
+ * @brief TIM3 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_IC_InitTypeDef sConfigIC = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 16 - 1;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 65535;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_IC_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
+  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
+  sConfigIC.ICFilter = 0;
+  if (HAL_TIM_IC_ConfigChannel(&htim3, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
 }
 
 /**
@@ -821,17 +858,14 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOE, OLED_SCL_Pin | OLED_SDA_Pin | OLED_RST_Pin | OLED_DC_Pin | LED3_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOE, OLED_SCL_Pin | OLED_SDA_Pin | OLED_RST_Pin | OLED_DC_Pin | LED3_Pin | US_Trig_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, AIN2_Pin | AIN1_Pin | BIN1_Pin | BIN2_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(US_Trig_GPIO_Port, US_Trig_Pin, GPIO_PIN_RESET);
-
   /*Configure GPIO pins : OLED_SCL_Pin OLED_SDA_Pin OLED_RST_Pin OLED_DC_Pin
-                           LED3_Pin */
-  GPIO_InitStruct.Pin = OLED_SCL_Pin | OLED_SDA_Pin | OLED_RST_Pin | OLED_DC_Pin | LED3_Pin;
+                           LED3_Pin US_Trig_Pin */
+  GPIO_InitStruct.Pin = OLED_SCL_Pin | OLED_SDA_Pin | OLED_RST_Pin | OLED_DC_Pin | LED3_Pin | US_Trig_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -851,12 +885,11 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : US_Trig_Pin */
-  GPIO_InitStruct.Pin = US_Trig_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  /*Configure GPIO pin : US_Echo_Pin */
+  GPIO_InitStruct.Pin = US_Echo_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(US_Trig_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(US_Echo_GPIO_Port, &GPIO_InitStruct);
 }
 
 /* USER CODE BEGIN 4 */
@@ -868,19 +901,19 @@ uint8_t Is_First_Captured = 0; // is the first value captured ?
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
-  if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) // if the interrupt source is channel1
+  if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) // if the interrupt source is channel2
   {
     if (Is_First_Captured == 0) // if the first value is not captured
     {
-      IC_Val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1); // read the first value
+      IC_Val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2); // read the first value
       Is_First_Captured = 1;                                    // set the first captured as true
       // Now change the polarity to falling edge
-      __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_FALLING);
+      __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_FALLING);
     }
 
     else if (Is_First_Captured == 1) // if the first is already captured
     {
-      IC_Val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1); // read second value
+      IC_Val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2); // read second value
       __HAL_TIM_SET_COUNTER(htim, 0);                           // reset the counter
 
       if (IC_Val2 > IC_Val1)
@@ -897,8 +930,8 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
       Is_First_Captured = 0; // set it back to false
 
       // set polarity to rising edge
-      __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
-      __HAL_TIM_DISABLE_IT(&htim1, TIM_IT_CC1);
+      __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_RISING);
+      __HAL_TIM_DISABLE_IT(&htim3, TIM_IT_CC2);
     }
   }
 }
@@ -1042,10 +1075,10 @@ void PIDConfigReset(PIDConfig *cfg)
 void HCSR04_Read(void)
 {
   HAL_GPIO_WritePin(US_Trig_GPIO_Port, US_Trig_Pin, GPIO_PIN_SET);   // pull the TRIG pin HIGH
-  osDelay(10);                                                       // wait for 10 us
+  __delay_us(&htim3, 10);                                            // wait for 10 us
   HAL_GPIO_WritePin(US_Trig_GPIO_Port, US_Trig_Pin, GPIO_PIN_RESET); // pull the TRIG pin low
 
-  __HAL_TIM_ENABLE_IT(&htim1, TIM_IT_CC1);
+  __HAL_TIM_ENABLE_IT(&htim3, TIM_IT_CC2);
 }
 
 int8_t dir = 1;
@@ -1245,10 +1278,10 @@ void runOledTask(void *argument)
     obsDist_US = 1000;
 
     HCSR04_Read();
-    OLED_ShowNumber(0, 0, obsDist_US, 5, 12);
+    OLED_ShowNumber(0, 0, IC_Val2, 5, 12);
 
     OLED_Refresh_Gram();
-    osDelay(10);
+    osDelay(1000);
   }
   /* USER CODE END runOledTask */
 }

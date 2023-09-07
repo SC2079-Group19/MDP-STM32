@@ -23,29 +23,30 @@
 #define __MAIN_H
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_hal.h"
 
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
+  /* Private includes ----------------------------------------------------------*/
+  /* USER CODE BEGIN Includes */
 
-/* USER CODE END Includes */
+  /* USER CODE END Includes */
 
-/* Exported types ------------------------------------------------------------*/
-/* USER CODE BEGIN ET */
+  /* Exported types ------------------------------------------------------------*/
+  /* USER CODE BEGIN ET */
 
-/* USER CODE END ET */
+  /* USER CODE END ET */
 
-/* Exported constants --------------------------------------------------------*/
-/* USER CODE BEGIN EC */
+  /* Exported constants --------------------------------------------------------*/
+  /* USER CODE BEGIN EC */
 
-/* USER CODE END EC */
+  /* USER CODE END EC */
 
-/* Exported macro ------------------------------------------------------------*/
-/* USER CODE BEGIN EM */
+  /* Exported macro ------------------------------------------------------------*/
+  /* USER CODE BEGIN EM */
 
 #define PI 3.141592654
 #define WHEEL_LENGTH 20
@@ -101,9 +102,9 @@ extern "C" {
 
   // #define __GET_TARGETTICK(speed, dist, targetTick) ({targetTick = ((dist) / (curSpeed * WHEEL_DIAMETER))})
 
-#define __delay_us(_TIMER4, time) ({            \
-  __HAL_TIM_SET_COUNTER(_TIMER4, 0);            \
-  while (__HAL_TIM_GET_COUNTER(_TIMER4) < time) \
+#define __delay_us(_TIMER3, time) ({            \
+  __HAL_TIM_SET_COUNTER(_TIMER3, 0);            \
+  while (__HAL_TIM_GET_COUNTER(_TIMER3) < time) \
     ;                                           \
 })
 
@@ -275,12 +276,12 @@ extern "C" {
   _CQ.head = (_CQ.head + 1) % _CQ.size;             \
 })
 
-/* USER CODE END EM */
+  /* USER CODE END EM */
 
-void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+  void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
-/* Exported functions prototypes ---------------------------------------------*/
-void Error_Handler(void);
+  /* Exported functions prototypes ---------------------------------------------*/
+  void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 
@@ -305,15 +306,17 @@ void Error_Handler(void);
 #define OLED_DC_GPIO_Port GPIOE
 #define LED3_Pin GPIO_PIN_10
 #define LED3_GPIO_Port GPIOE
+#define US_Trig_Pin GPIO_PIN_11
+#define US_Trig_GPIO_Port GPIOE
 #define PWMA_Pin GPIO_PIN_6
 #define PWMA_GPIO_Port GPIOC
 #define PWMB_Pin GPIO_PIN_7
 #define PWMB_GPIO_Port GPIOC
-#define US_Trig_Pin GPIO_PIN_4
-#define US_Trig_GPIO_Port GPIOB
-/* USER CODE BEGIN Private defines */
+#define US_Echo_Pin GPIO_PIN_5
+#define US_Echo_GPIO_Port GPIOB
+  /* USER CODE BEGIN Private defines */
 
-/* USER CODE END Private defines */
+  /* USER CODE END Private defines */
 
 #ifdef __cplusplus
 }
