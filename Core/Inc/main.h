@@ -69,7 +69,7 @@ extern "C"
 
 // TODO:calibrate
 #define SERVO_LEFT_MAX 85
-#define SERVO_CENTER 142
+#define SERVO_CENTER 145
 #define SERVO_RIGHT_MAX 225
 
 #define IR_CONST_A 25644.81557
@@ -102,9 +102,9 @@ extern "C"
 
   // #define __GET_TARGETTICK(speed, dist, targetTick) ({targetTick = ((dist) / (curSpeed * WHEEL_DIAMETER))})
 
-#define __delay_us(_TIMER3, time) ({            \
-  __HAL_TIM_SET_COUNTER(_TIMER3, 0);            \
-  while (__HAL_TIM_GET_COUNTER(_TIMER3) < time) \
+#define __delay_us(_TIMER6, time) ({            \
+  __HAL_TIM_SET_COUNTER(_TIMER6, 0);            \
+  while (__HAL_TIM_GET_COUNTER(_TIMER6) < time) \
     ;                                           \
 })
 
@@ -312,8 +312,6 @@ extern "C"
 #define PWMA_GPIO_Port GPIOC
 #define PWMB_Pin GPIO_PIN_7
 #define PWMB_GPIO_Port GPIOC
-#define US_Echo_Pin GPIO_PIN_5
-#define US_Echo_GPIO_Port GPIOB
   /* USER CODE BEGIN Private defines */
 
   /* USER CODE END Private defines */

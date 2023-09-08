@@ -50,6 +50,7 @@ I2C_HandleTypeDef hi2c1;
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim6;
 TIM_HandleTypeDef htim8;
 
 UART_HandleTypeDef huart3;
@@ -294,6 +295,7 @@ static void MX_TIM8_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_TIM6_Init(void);
 void runEncoder(void *argument);
 void runOledTask(void *argument);
 void runFWTask(void *argument);
@@ -360,6 +362,7 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM1_Init();
   MX_TIM3_Init();
+  MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
 
   // oled
@@ -383,7 +386,9 @@ int main(void)
   HAL_UART_Receive_IT(&huart3, aRxBuffer, RX_BUFFER_SIZE);
 
   // ultrasonic
+  HAL_TIM_Base_Start(&htim6);
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2);
+
   // HAL_TIM_Base_Start(&htim1);
 
   __RESET_SERVO_TURN(&htim1);
@@ -698,6 +703,7 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 0 */
 
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
   TIM_IC_InitTypeDef sConfigIC = {0};
 
@@ -710,6 +716,15 @@ static void MX_TIM3_Init(void)
   htim3.Init.Period = 65535;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
   if (HAL_TIM_IC_Init(&htim3) != HAL_OK)
   {
     Error_Handler();
@@ -720,7 +735,7 @@ static void MX_TIM3_Init(void)
   {
     Error_Handler();
   }
-  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_BOTHEDGE;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
   sConfigIC.ICFilter = 0;
@@ -731,6 +746,43 @@ static void MX_TIM3_Init(void)
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
+}
+
+/**
+ * @brief TIM6 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_TIM6_Init(void)
+{
+
+  /* USER CODE BEGIN TIM6_Init 0 */
+
+  /* USER CODE END TIM6_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM6_Init 1 */
+
+  /* USER CODE END TIM6_Init 1 */
+  htim6.Instance = TIM6;
+  htim6.Init.Prescaler = 16 - 1;
+  htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim6.Init.Period = 65535;
+  htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim6, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM6_Init 2 */
+
+  /* USER CODE END TIM6_Init 2 */
 }
 
 /**
@@ -884,12 +936,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : US_Echo_Pin */
-  GPIO_InitStruct.Pin = US_Echo_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(US_Echo_GPIO_Port, &GPIO_InitStruct);
 }
 
 /* USER CODE BEGIN 4 */
@@ -943,7 +989,8 @@ int8_t step = 0;
 uint8_t turnMode = 2;
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-  // prevent unused argument(s) compilation warning
+  // TODO: add delimeter at end of command
+  //  prevent unused argument(s) compilation warning
   UNUSED(huart);
   int val;
 
@@ -1074,10 +1121,12 @@ void PIDConfigReset(PIDConfig *cfg)
 
 void HCSR04_Read(void)
 {
+  HAL_GPIO_WritePin(US_Trig_GPIO_Port, US_Trig_Pin, GPIO_PIN_RESET);
+  __delay_us(&htim6, 50);
   HAL_GPIO_WritePin(US_Trig_GPIO_Port, US_Trig_Pin, GPIO_PIN_SET);   // pull the TRIG pin HIGH
-  __delay_us(&htim3, 10);                                            // wait for 10 us
+  __delay_us(&htim6, 10);                                            // wait for 10 us
   HAL_GPIO_WritePin(US_Trig_GPIO_Port, US_Trig_Pin, GPIO_PIN_RESET); // pull the TRIG pin low
-
+  __delay_us(&htim6, 50);
   __HAL_TIM_ENABLE_IT(&htim3, TIM_IT_CC2);
 }
 
@@ -1508,6 +1557,16 @@ void runFLTask(void *argument)
         osDelay(10);
         break;
       }
+      clickOnce = 0;
+      prevTask = curTask;
+      curTask = TASK_NONE;
+      if (__COMMAND_QUEUE_IS_EMPTY(cQueue))
+      {
+        __CLEAR_CURCMD(curCmd);
+        __ACK_TASK_DONE(&huart3, rxMsg);
+      }
+      else
+        __READ_COMMAND(cQueue, curCmd, rxMsg);
     }
   }
   /* USER CODE END runFLTask */
@@ -1526,7 +1585,56 @@ void runFRTask(void *argument)
   /* Infinite loop */
   for (;;)
   {
-    osDelay(1);
+    if (curTask != TASK_FL)
+      osDelay(100);
+    else
+    {
+
+      switch (curCmd.val)
+      {
+      case 30: // FR30 (4x2)
+        __SET_CMD_CONFIG(cfgs[CONFIG_FR30], &htim8, &htim1, targetAngle);
+        // OLED_ShowString(0, 50, (uint8_t *)"FR30");
+        RobotTurn(&targetAngle);
+        osDelay(10);
+        targetDist = 4;
+        RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        osDelay(10);
+        break;
+      case 20: // FR20 (outdoor 3x1)
+        targetDist = 4;
+        RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        osDelay(10);
+        __SET_CMD_CONFIG(cfgs[CONFIG_FR20], &htim8, &htim1, targetAngle);
+        RobotTurn(&targetAngle);
+        osDelay(10);
+        targetDist = 7;
+        RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        osDelay(10);
+        break;
+      default: // FR00 (indoor 3x1)
+        targetDist = 4;
+        RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        osDelay(10);
+        __SET_CMD_CONFIG(cfgs[CONFIG_FR00], &htim8, &htim1, targetAngle);
+        RobotTurn(&targetAngle);
+        osDelay(10);
+        targetDist = 7;
+        RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        osDelay(10);
+        break;
+      }
+      clickOnce = 0;
+      prevTask = curTask;
+      curTask = TASK_NONE;
+      if (__COMMAND_QUEUE_IS_EMPTY(cQueue))
+      {
+        __CLEAR_CURCMD(curCmd);
+        __ACK_TASK_DONE(&huart3, rxMsg);
+      }
+      else
+        __READ_COMMAND(cQueue, curCmd, rxMsg);
+    }
   }
   /* USER CODE END runFRTask */
 }
@@ -1583,6 +1691,16 @@ void runBLTask(void *argument)
         osDelay(10);
         break;
       }
+      clickOnce = 0;
+      prevTask = curTask;
+      curTask = TASK_NONE;
+      if (__COMMAND_QUEUE_IS_EMPTY(cQueue))
+      {
+        __CLEAR_CURCMD(curCmd);
+        __ACK_TASK_DONE(&huart3, rxMsg);
+      }
+      else
+        __READ_COMMAND(cQueue, curCmd, rxMsg);
     }
   }
   /* USER CODE END runBLTask */
@@ -1640,6 +1758,16 @@ void runBRTask(void *argument)
         osDelay(10);
         break;
       }
+      clickOnce = 0;
+      prevTask = curTask;
+      curTask = TASK_NONE;
+      if (__COMMAND_QUEUE_IS_EMPTY(cQueue))
+      {
+        __CLEAR_CURCMD(curCmd);
+        __ACK_TASK_DONE(&huart3, rxMsg);
+      }
+      else
+        __READ_COMMAND(cQueue, curCmd, rxMsg);
     }
   }
   /* USER CODE END runBRTask */
