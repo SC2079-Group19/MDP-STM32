@@ -62,7 +62,8 @@ grp19_stm32.hex \
 
 
 # All Target
-all: main-build
+all:
+	+@$(MAKE) --no-print-directory main-build && $(MAKE) --no-print-directory post-build
 
 # Main-build Target
 main-build: grp19_stm32.elf secondary-outputs
@@ -93,6 +94,10 @@ clean:
 	-$(RM) default.size.stdout grp19_stm32.elf grp19_stm32.hex grp19_stm32.list grp19_stm32.map
 	-@echo ' '
 
+post-build:
+	arm-none-eabi-objcopy -O ihex grp19_stm32.elf grp19_stm32.hex
+	-@echo ' '
+
 secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST) $(OBJCOPY_HEX)
 
 fail-specified-linker-script-missing:
@@ -102,6 +107,6 @@ fail-specified-linker-script-missing:
 warn-no-linker-script-specified:
 	@echo 'Warning: No linker script specified. Check the linker settings in the build configuration.'
 
-.PHONY: all clean dependents main-build fail-specified-linker-script-missing warn-no-linker-script-specified
+.PHONY: all clean dependents main-build fail-specified-linker-script-missing warn-no-linker-script-specified post-build
 
 -include ../makefile.targets

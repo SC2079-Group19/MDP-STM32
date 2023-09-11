@@ -125,6 +125,20 @@ const osThreadAttr_t cmdTask_attributes = {
     .stack_size = 128 * 4,
     .priority = (osPriority_t)osPriorityNormal,
 };
+/* Definitions for moveDistObsTask */
+osThreadId_t moveDistObsTaskHandle;
+const osThreadAttr_t moveDistObsTask_attributes = {
+    .name = "moveDistObsTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityNormal,
+};
+/* Definitions for navArdObsTask */
+osThreadId_t navArdObsTaskHandle;
+const osThreadAttr_t navArdObsTask_attributes = {
+    .name = "navArdObsTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityNormal,
+};
 /* USER CODE BEGIN PV */
 
 uint8_t RX_BUFFER_SIZE = 5;
@@ -251,7 +265,8 @@ enum TASK_TYPE
   TASK_MOVE_DIST,
   TASK_TURN_ANGLE,
   TASK_ADC,
-  // TASK_MOVE_OBS,
+  TASK_MOVE_OBS,
+  TASK_NAV_OBS,
   // TASK_FASTESTPATH,
   // TASK_BUZZER,
   TASK_NONE
@@ -306,6 +321,8 @@ void runBLTask(void *argument);
 void runBRTask(void *argument);
 void runADCTask(void *argument);
 void runCmdTask(void *argument);
+void runMoveDistObsTask(void *argument);
+void runNavArdObsTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 void PIDConfigInit(PIDConfig *cfg, const float Kp, const float Ki, const float Kd);
@@ -314,7 +331,7 @@ void PIDConfigReset(PIDConfig *cfg);
 void StraightLineMove(const uint8_t speedMode);
 void StraightLineMoveSpeedScale(const uint8_t speedMode, float *speedScale);
 void RobotMoveDist(float *targetDist, const uint8_t dir, const uint8_t speedMode);
-// void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode);
+void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode);
 
 void RobotTurn(float *targetAngle);
 // void RobotTurnFastest(float *targetAngle);
@@ -473,6 +490,12 @@ int main(void)
 
   /* creation of cmdTask */
   cmdTaskHandle = osThreadNew(runCmdTask, NULL, &cmdTask_attributes);
+
+  /* creation of moveDistObsTask */
+  moveDistObsTaskHandle = osThreadNew(runMoveDistObsTask, NULL, &moveDistObsTask_attributes);
+
+  /* creation of navArdObsTask */
+  navArdObsTaskHandle = osThreadNew(runNavArdObsTask, NULL, &navArdObsTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -964,15 +987,15 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 
       if (IC_Val2 > IC_Val1)
       {
-        US_diff = IC_Val2 - IC_Val1;
+        obsDist_US = IC_Val2 - IC_Val1;
       }
 
       else if (IC_Val1 > IC_Val2)
       {
-        US_diff = (0xffff - IC_Val1) + IC_Val2;
+        obsDist_US = (0xffff - IC_Val1) + IC_Val2;
       }
 
-      obsDist_US = US_diff * .034 / 2;
+      obsDist_US = obsDist_US * .034 / 2;
       Is_First_Captured = 0; // set it back to false
 
       // set polarity to rising edge
@@ -1231,6 +1254,57 @@ void RobotTurn(float *targetAngle)
   __RESET_SERVO_TURN(&htim1);
 }
 
+// RobotMoveDistObstacle must be called within a task(eg. runFastestPath) and not within an interrupt(eg. UART, EXTI)
+// else osDelay won't work and TRI's timer interrupt can't be given chance to update obsDist_US
+void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode)
+{
+  angleNow = 0;
+  gyroZ = 0;
+  PIDConfigReset(&pidTSlow);
+  PIDConfigReset(&pidSlow);
+  PIDConfigReset(&pidFast);
+  obsDist_US = 1000;
+  HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2);
+  last_curTask_tick = HAL_GetTick();
+
+  do
+  {
+    // HAL_GPIO_WritePin(US_Trig_GPIO_Port, US_Trig_Pin, GPIO_PIN_SET);   // pull the TRIG pin HIGH
+    // __delay_us(&htim6, 10);                                            // wait for 10us
+    // HAL_GPIO_WritePin(US_Trig_GPIO_Port, US_Trig_Pin, GPIO_PIN_RESET); // pull the TRIG pin low
+    // __HAL_TIM_ENABLE_IT(&htim3, TIM_IT_CC2);
+
+    HCSR04_Read();
+
+    osDelay(10); // give timer interrupt chance to update obsDist_US value
+    if (abs(*targetDist - obsDist_US) < 0.1)
+      break;
+    __SET_MOTOR_DIRECTION(obsDist_US >= *targetDist);
+    if (HAL_GetTick() - last_curTask_tick >= 20)
+    {
+      //		  speedScale = 1;
+      if (speedMode == SPEED_MODE_1)
+      {
+        speedScale = abs(obsDist_US - *targetDist) / 15; // slow down at 15cm
+        speedScale = speedScale > 1 ? 1 : (speedScale < 0.75 ? 0.75 : speedScale);
+        StraightLineMoveSpeedScale(SPEED_MODE_1, &speedScale);
+      }
+      else
+      {
+        speedScale = abs(obsDist_US - *targetDist) / 15; // slow down at 15cm
+        speedScale = speedScale > 1 ? 1 : (speedScale < 0.4 ? 0.4 : speedScale);
+        StraightLineMoveSpeedScale(SPEED_MODE_2, &speedScale);
+      }
+
+      last_curTask_tick = HAL_GetTick();
+    }
+
+  } while (1);
+
+  __SET_MOTOR_DUTY(&htim8, 0, 0);
+  HAL_TIM_IC_Stop_IT(&htim3, TIM_CHANNEL_2);
+}
+
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_runEncoder */
@@ -1324,10 +1398,8 @@ void runOledTask(void *argument)
     // HAL_UART_Transmit(&huart3, aRxBuffer, RX_BUFFER_SIZE, 0xFFFF);
     OLED_ShowString(0, 40, (char *)aRxBuffer);
 
-    obsDist_US = 1000;
-
     HCSR04_Read();
-    OLED_ShowNumber(0, 0, IC_Val2, 5, 12);
+    OLED_ShowNumber(0, 0, obsDist_US, 5, 12);
 
     OLED_Refresh_Gram();
     osDelay(1000);
@@ -1877,10 +1949,10 @@ void runCmdTask(void *argument)
     case 13: // debug IR sensor
       curTask = TASK_ADC;
       break;
-    // case 14: // DT move until specified distance from obstacle
-    //   curTask = TASK_MOVE_OBS;
-    //   __PEND_CURCMD(curCmd);
-    //   break;
+    case 14: // DT move until specified distance from obstacle
+      curTask = TASK_MOVE_OBS;
+      __PEND_CURCMD(curCmd);
+      break;
     // case 15:
     //   curTask = TASK_BUZZER;
     //   __PEND_CURCMD(curCmd);
@@ -1908,7 +1980,7 @@ void runCmdTask(void *argument)
         __SET_MOTOR_DUTY(&htim8, 1200, 800);
       }
       __PEND_CURCMD(curCmd);
-      // RobotTurn(&targetAngle);
+      RobotTurn(&targetAngle);
       break;
     case 99:
       break;
@@ -1921,6 +1993,60 @@ void runCmdTask(void *argument)
     osDelay(1);
   }
   /* USER CODE END runCmdTask */
+}
+
+/* USER CODE BEGIN Header_runMoveDistObsTask */
+/**
+ * @brief Function implementing the moveDistObsTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_runMoveDistObsTask */
+void runMoveDistObsTask(void *argument)
+{
+  /* USER CODE BEGIN runMoveDistObsTask */
+  /* Infinite loop */
+  for (;;)
+  {
+    if (curTask != TASK_MOVE_OBS)
+      osDelay(1000);
+    else
+    {
+      targetDist = (float)curCmd.val;
+      RobotMoveDistObstacle(&targetDist, SPEED_MODE_2);
+
+      __ON_TASK_END(&htim8, prevTask, curTask);
+      clickOnce = 0;
+
+      if (__COMMAND_QUEUE_IS_EMPTY(cQueue))
+      {
+        __CLEAR_CURCMD(curCmd);
+        __ACK_TASK_DONE(&huart3, rxMsg);
+      }
+      else
+        __READ_COMMAND(cQueue, curCmd, rxMsg);
+    }
+  }
+  // Delay(1);
+}
+/* USER CODE END runMoveDistObsTask */
+
+/* USER CODE BEGIN Header_runNavArdObsTask */
+/**
+ * @brief Function implementing the navArdObsTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_runNavArdObsTask */
+void runNavArdObsTask(void *argument)
+{
+  /* USER CODE BEGIN runNavArdObsTask */
+  /* Infinite loop */
+  for (;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END runNavArdObsTask */
 }
 
 /**
