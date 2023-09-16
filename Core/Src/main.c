@@ -232,20 +232,20 @@ CmdConfig cfgs[19] = {
     {1200, 1200, SERVO_CENTER, 0, DIR_FORWARD},  // FW00
     {1200, 1200, SERVO_CENTER, 0, DIR_BACKWARD}, // BW00
 
-    {800, 1200, SERVO_LEFT_MAX, 0, DIR_FORWARD},   // FL--
-    {800, 1200, SERVO_LEFT_MAX, 0, DIR_BACKWARD},  // BL--
-    {1200, 800, SERVO_RIGHT_MAX, 0, DIR_FORWARD},  // FR--
-    {1200, 800, SERVO_RIGHT_MAX, 0, DIR_BACKWARD}, // BR--
+    {800, 1200, SERVO_LEFT_MAX, 90, DIR_FORWARD},   // FL--
+    {800, 1200, SERVO_LEFT_MAX, -90, DIR_BACKWARD}, // BL--
+    {1200, 800, SERVO_RIGHT_MAX, -90, DIR_FORWARD}, // FR--
+    {1200, 800, SERVO_RIGHT_MAX, 90, DIR_BACKWARD}, // BR--
 
     {700, 1800, SERVO_LEFT_MAX, 90, DIR_FORWARD},   // FL00
-    {1800, 400, SERVO_RIGHT_MAX, -90, DIR_FORWARD}, // FR00
-    {500, 1700, SERVO_LEFT_MAX, -90, DIR_BACKWARD}, // BL00
-    {1800, 500, SERVO_RIGHT_MAX, 90, DIR_BACKWARD}, // BR00,
+    {1800, 700, SERVO_RIGHT_MAX, -90, DIR_FORWARD}, // FR00
+    {700, 1800, SERVO_LEFT_MAX, -90, DIR_BACKWARD}, // BL00
+    {1800, 700, SERVO_RIGHT_MAX, 90, DIR_BACKWARD}, // BR00,
 
-    {800, 1800, SERVO_LEFT_MAX, 90, DIR_FORWARD},   // FL20
+    {900, 1800, SERVO_LEFT_MAX, 90, DIR_FORWARD},   // FL20
     {1800, 900, SERVO_RIGHT_MAX, -90, DIR_FORWARD}, // FR20
-    {700, 1800, SERVO_LEFT_MAX, -90, DIR_BACKWARD}, // BL20
-    {1800, 700, SERVO_RIGHT_MAX, 90, DIR_BACKWARD}, // BR20,
+    {900, 1800, SERVO_LEFT_MAX, -90, DIR_BACKWARD}, // BL20
+    {1800, 900, SERVO_RIGHT_MAX, 90, DIR_BACKWARD}, // BR20,
 
     {1500, 1500, SERVO_LEFT_MAX, 90, DIR_FORWARD},   // FL30
     {1500, 1500, SERVO_RIGHT_MAX, -90, DIR_FORWARD}, // FR30
@@ -1111,10 +1111,14 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     __ADD_COMMAND(cQueue, 16, val); // WN fastest path
   else if (aRxBuffer[0] == 'W' && aRxBuffer[1] == 'N')
     __ADD_COMMAND(cQueue, 17, val); // WN fastest path v2
-  else if (aRxBuffer[0] == 'A')
-    __ADD_COMMAND(cQueue, 88, val); // anti-clockwise rotation with variable
-  else if (aRxBuffer[0] == 'C')
-    __ADD_COMMAND(cQueue, 89, val); // clockwise rotation with variable
+  else if (aRxBuffer[0] == 'F' && aRxBuffer[1] == 'A')
+    __ADD_COMMAND(cQueue, 88, val); // forward anti-clockwise rotation with variable
+  else if (aRxBuffer[0] == 'F' && aRxBuffer[1] == 'C')
+    __ADD_COMMAND(cQueue, 89, val); // forward clockwise rotation with variable
+  else if (aRxBuffer[0] == 'B' && aRxBuffer[1] == 'A')
+    __ADD_COMMAND(cQueue, 90, val); // backward anti-clockwise rotation with variable
+  else if (aRxBuffer[0] == 'B' && aRxBuffer[1] == 'C')
+    __ADD_COMMAND(cQueue, 91, val); // backward clockwise rotation with variable
 
   if (!__COMMAND_QUEUE_IS_EMPTY(cQueue))
   {
@@ -1421,12 +1425,12 @@ void runFWTask(void *argument)
   /* Infinite loop */
   for (;;)
   {
-
     if (curTask != TASK_MOVE_FOREWARD)
-      osDelay(1000);
+      osDelay(100);
     else
     {
-
+      targetDist = 0;
+      targetDistTick = 0;
       if (manualMode)
       {
 
@@ -1481,6 +1485,7 @@ void runFWTask(void *argument)
         if (__COMMAND_QUEUE_IS_EMPTY(cQueue))
         {
           __CLEAR_CURCMD(curCmd);
+          // HAL_UART_Transmit(&huart3, (char *)(curTask), 6, 0xFFFF);
           __ACK_TASK_DONE(&huart3, rxMsg);
         }
         else
@@ -1507,11 +1512,14 @@ void runBWTask(void *argument)
   for (;;)
   {
     if (curTask != TASK_MOVE_BACKWARD)
-      osDelay(1000);
+      osDelay(100);
     else
     {
+      targetDist = 0;
+      targetDistTick = 0;
       if (manualMode)
       {
+
         angleNow = 0;
         gyroZ = 0; // reset angle for PID
         PIDConfigReset(&pidTSlow);
@@ -1564,9 +1572,11 @@ void runBWTask(void *argument)
         {
           __CLEAR_CURCMD(curCmd);
           __ACK_TASK_DONE(&huart3, rxMsg);
+          // HAL_UART_Transmit(&huart3, (uint8_t *)(curTask), 6, 0xFFFF);
         }
         else
           __READ_COMMAND(cQueue, curCmd, rxMsg);
+        // HAL_UART_Transmit(&huart3, (uint8_t *)(curTask), 6, 0xFFFF);
       }
     }
   }
@@ -1657,7 +1667,7 @@ void runFRTask(void *argument)
   /* Infinite loop */
   for (;;)
   {
-    if (curTask != TASK_FL)
+    if (curTask != TASK_FR)
       osDelay(100);
     else
     {
@@ -1906,8 +1916,11 @@ void runCmdTask(void *argument)
       //	  	 case 0: // STOP handled in UART IRQ directly
       //	  	  	  break;
     case 1: // FW
+      curTask = TASK_MOVE_FOREWARD;
+      __PEND_CURCMD(curCmd);
+      break;
     case 2: // BW
-      curTask = curCmd.index == 1 ? TASK_MOVE_FOREWARD : TASK_MOVE_BACKWARD;
+      curTask = TASK_MOVE_BACKWARD;
       __PEND_CURCMD(curCmd);
       break;
     case 3: // FL manual
@@ -1965,8 +1978,8 @@ void runCmdTask(void *argument)
     //   curTask = TASK_FASTESTPATH_V2;
     //   __PEND_CURCMD(curCmd);
     //   break;
-    case 88: // Axxx, rotate left by xxx degree
-    case 89: // Cxxx, rotate right by xxx degree
+    case 88: // FAxxx, forward rotate left by xxx degree
+    case 89: // FCxxx, forward rotate right by xxx degree
       __SET_SERVO_TURN_MAX(&htim1, curCmd.index - 88);
       __SET_MOTOR_DIRECTION(DIR_FORWARD);
       if (curCmd.index == 88)
@@ -1978,6 +1991,23 @@ void runCmdTask(void *argument)
       {
         targetAngle = -curCmd.val;
         __SET_MOTOR_DUTY(&htim8, 1200, 800);
+      }
+      __PEND_CURCMD(curCmd);
+      RobotTurn(&targetAngle);
+      break;
+    case 90: // BAxxx, backward rotate left by xxx degree
+    case 91: // BCxxx, backward rotate right by xxx degree
+      __SET_SERVO_TURN_MAX(&htim1, curCmd.index - 90);
+      __SET_MOTOR_DIRECTION(DIR_BACKWARD);
+      if (curCmd.index == 90)
+      {
+        targetAngle = curCmd.val;
+        __SET_MOTOR_DUTY(&htim8, 1200, 800);
+      }
+      else
+      {
+        targetAngle = -curCmd.val;
+        __SET_MOTOR_DUTY(&htim8, 800, 1200);
       }
       __PEND_CURCMD(curCmd);
       RobotTurn(&targetAngle);
