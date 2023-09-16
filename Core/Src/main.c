@@ -1995,9 +1995,9 @@ void runCmdTask(void *argument)
       __PEND_CURCMD(curCmd);
       RobotTurn(&targetAngle);
       break;
-    case 90: // BAxxx, backward rotate left by xxx degree
-    case 91: // BCxxx, backward rotate right by xxx degree
-      __SET_SERVO_TURN_MAX(&htim1, curCmd.index - 90);
+    case 90: // BAxxx, backward rotate right by xxx degree
+    case 91: // BCxxx, backward rotate left by xxx degree
+      __SET_SERVO_TURN_MAX(&htim1, (int)(!(curCmd.index - 90)));
       __SET_MOTOR_DIRECTION(DIR_BACKWARD);
       if (curCmd.index == 90)
       {
