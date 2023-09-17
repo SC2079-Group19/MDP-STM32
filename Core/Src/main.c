@@ -256,7 +256,7 @@ CmdConfig cfgs[19] = {
 
 enum TASK_TYPE
 {
-  TASK_MOVE_FOREWARD,
+  TASK_MOVE_FORWARD,
   TASK_MOVE_BACKWARD,
   TASK_FL,
   TASK_FR,
@@ -687,7 +687,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 0;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 4294967295;
+  htim2.Init.Period = 65535;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
@@ -1179,50 +1179,55 @@ void StraightLineMove(const uint8_t speedMode)
 
 void RobotMoveDist(float *targetDist, const uint8_t dir, const uint8_t speedMode)
 {
+  angleNow = 0;
+  gyroZ = 0; // reset angle for PID
+  PIDConfigReset(&pidTSlow);
+  PIDConfigReset(&pidSlow);
+  PIDConfigReset(&pidFast);
+  curDistTick = 0;
+  dist_dL = 0;
+  curDistTick = 0;
+
+  // char distBuf[70];
+
+  __GET_TARGETTICK(*targetDist, targetDistTick);
+
+  last_curTask_tick = HAL_GetTick();
+  __SET_MOTOR_DIRECTION(dir);
+  __SET_ENCODER_LAST_TICK(&htim2, lastDistTick_L);
+  do
   {
-    angleNow = 0;
-    gyroZ = 0; // reset angle for PID
-    PIDConfigReset(&pidTSlow);
-    PIDConfigReset(&pidSlow);
-    PIDConfigReset(&pidFast);
-    curDistTick = 0;
 
-    __GET_TARGETTICK(*targetDist, targetDistTick);
+    __GET_ENCODER_TICK_DELTA(&htim2, lastDistTick_L, dist_dL);
+    curDistTick += dist_dL;
 
-    last_curTask_tick = HAL_GetTick();
-    __SET_MOTOR_DIRECTION(dir);
-    __SET_ENCODER_LAST_TICK(&htim2, lastDistTick_L);
-    do
+    // sprintf(distBuf, "curtick: %d lasttick: %d dl: %d tar: %d cur: %d \r\n", 0, lastDistTick_L, dist_dL, targetDistTick, curDistTick);
+
+    // HAL_UART_Transmit(&huart3, distBuf, strlen(distBuf), 0xFFFF);
+
+    if (curDistTick >= targetDistTick)
+      break;
+
+    if (HAL_GetTick() - last_curTask_tick >= 10)
     {
-      __GET_ENCODER_TICK_DELTA(&htim2, lastDistTick_L, dist_dL);
-      curDistTick += dist_dL;
-
-      osDelay(10);
-
-      if (curDistTick >= targetDistTick)
-        break;
-
-      if (HAL_GetTick() - last_curTask_tick >= 10)
+      if (speedMode == SPEED_MODE_T)
       {
-        if (speedMode == SPEED_MODE_T)
-        {
-          StraightLineMove(SPEED_MODE_T);
-        }
-        else
-        {
-          speedScale = abs(curDistTick - targetDistTick) / 1100; // start to slow down at last 1100 ticks (?cm)
-          if (speedMode == SPEED_MODE_1)
-            speedScale = speedScale > 1 ? 1 : (speedScale < 0.75 ? 0.75 : speedScale);
-          else if (speedMode == SPEED_MODE_2)
-            speedScale = speedScale > 1 ? 1 : (speedScale < 0.4 ? 0.4 : speedScale);
-          StraightLineMoveSpeedScale(speedMode, &speedScale);
-        }
-
-        last_curTask_tick = HAL_GetTick();
+        StraightLineMove(SPEED_MODE_T);
       }
-    } while (1);
-    __SET_MOTOR_DUTY(&htim8, 0, 0);
-  }
+      else
+      {
+        speedScale = abs(curDistTick - targetDistTick) / 990; // start to slow down at last 990 ticks (15cm)
+        if (speedMode == SPEED_MODE_1)
+          speedScale = speedScale > 1 ? 1 : (speedScale < 0.75 ? 0.75 : speedScale);
+        else if (speedMode == SPEED_MODE_2)
+          speedScale = speedScale > 1 ? 1 : (speedScale < 0.4 ? 0.4 : speedScale);
+        StraightLineMoveSpeedScale(speedMode, &speedScale);
+      }
+
+      last_curTask_tick = HAL_GetTick();
+    }
+  } while (1);
+  __SET_MOTOR_DUTY(&htim8, 0, 0);
 }
 
 void StraightLineMoveSpeedScale(const uint8_t speedMode, float *speedScale)
@@ -1321,59 +1326,63 @@ void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode)
 void runEncoder(void *argument)
 {
   /* USER CODE BEGIN 5 */
+
   // HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
-  int cnt1 = 0, cnt2 = 0, diff = 0;
+  // int cnt1 = 0, cnt2 = 0, diff = 0;
 
-  uint32_t tick = 0;
+  // uint32_t tick = 0;
 
-  cnt1 = __HAL_TIM_GET_COUNTER(&htim2);
-  tick = HAL_GetTick();
+  // cnt1 = __HAL_TIM_GET_COUNTER(&htim2);
+  // tick = HAL_GetTick();
 
-  // uint8_t encoderBuffer[20];
-  uint8_t speedBuffer[20];
-  uint8_t directionBuffer[10];
-  dir = __HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2);
+  // // uint8_t encoderBuffer[20];
+  // uint8_t speedBuffer[20];
+  // uint8_t directionBuffer[10];
+  // dir = __HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2);
 
-  /* Infinite loop */
-
+  // /* Infinite loop */
   for (;;)
   {
-    // HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_10);
-    if (HAL_GetTick() - tick > 1000L)
-    {
-      cnt2 = __HAL_TIM_GET_COUNTER(&htim2);
-      if (__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2))
-      {
-        if (cnt2 < cnt1)
-        {
-          diff = cnt1 - cnt2;
-        }
-        else
-          diff = (65535 - cnt2) + cnt1;
-      }
-      else
-      {
-        if (cnt2 > cnt1)
-        {
-          diff = cnt2 - cnt1;
-        }
-        else
-          diff = (65535 - cnt1) + cnt2;
-      }
-      curSpeed = diff;
-      // display on oled
-      // sprintf(speedBuffer, "Speed:%5d\0", diff);
-      // OLED_ShowString(0, 0, speedBuffer);
-      // sprintf(directionBuffer, "Dir:%5d\0", dir);
-      // OLED_ShowString(0, 15, directionBuffer);
-
-      // OLED_Refresh_Gram();
-      cnt1 = __HAL_TIM_GET_COUNTER(&htim2);
-      tick = HAL_GetTick();
-    }
-
     osDelay(100);
   }
+  // for (;;)
+  // {
+  //   // HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_10);
+  //   if (HAL_GetTick() - tick > 1000L)
+  //   {
+  //     cnt2 = __HAL_TIM_GET_COUNTER(&htim2);
+  //     if (__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2))
+  //     {
+  //       if (cnt2 < cnt1)
+  //       {
+  //         diff = cnt1 - cnt2;
+  //       }
+  //       else
+  //         diff = (65535 - cnt2) + cnt1;
+  //     }
+  //     else
+  //     {
+  //       if (cnt2 > cnt1)
+  //       {
+  //         diff = cnt2 - cnt1;
+  //       }
+  //       else
+  //         diff = (65535 - cnt1) + cnt2;
+  //     }
+  //     curSpeed = diff;
+  //     // display on oled
+  //     // sprintf(speedBuffer, "Speed:%5d\0", diff);
+  //     // OLED_ShowString(0, 0, speedBuffer);
+  //     // sprintf(directionBuffer, "Dir:%5d\0", dir);
+  //     // OLED_ShowString(0, 15, directionBuffer);
+
+  //     // OLED_Refresh_Gram();
+  //     cnt1 = __HAL_TIM_GET_COUNTER(&htim2);
+  //     tick = HAL_GetTick();
+  //   }
+
+  //   osDelay(100);
+  // }
   /* USER CODE END 5 */
 }
 
@@ -1402,11 +1411,11 @@ void runOledTask(void *argument)
     // HAL_UART_Transmit(&huart3, aRxBuffer, RX_BUFFER_SIZE, 0xFFFF);
     OLED_ShowString(0, 40, (char *)aRxBuffer);
 
-    HCSR04_Read();
-    OLED_ShowNumber(0, 0, obsDist_US, 5, 12);
+    // HCSR04_Read();
+    // OLED_ShowNumber(0, 0, obsDist_US, 5, 12);
 
     OLED_Refresh_Gram();
-    osDelay(1000);
+    osDelay(100);
   }
   /* USER CODE END runOledTask */
 }
@@ -1421,12 +1430,11 @@ void runOledTask(void *argument)
 void runFWTask(void *argument)
 {
   /* USER CODE BEGIN runFWTask */
-  // float targetAngle = 90;
   /* Infinite loop */
   for (;;)
   {
-    if (curTask != TASK_MOVE_FOREWARD)
-      osDelay(100);
+    if (curTask != TASK_MOVE_FORWARD)
+      osDelay(1000);
     else
     {
       targetDist = 0;
@@ -1455,6 +1463,7 @@ void runFWTask(void *argument)
             break;
           if (HAL_GetTick() - last_curTask_tick >= 10)
           {
+
             StraightLineMove(SPEED_MODE_T);
             last_curTask_tick = HAL_GetTick();
           }
@@ -1471,12 +1480,12 @@ void runFWTask(void *argument)
 
         if (moveMode == SLOW)
         {
+          // HAL_UART_Transmit(&huart3, (uint8_t *)("FW10\r\n"), 6, 0xFFFF);
           RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_1);
         }
         else
         {
           RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_2);
-          // OLED_ShowString(40, 40, (uint8_t *)"FW");
         }
 
         __ON_TASK_END(&htim8, prevTask, curTask);
@@ -1485,7 +1494,6 @@ void runFWTask(void *argument)
         if (__COMMAND_QUEUE_IS_EMPTY(cQueue))
         {
           __CLEAR_CURCMD(curCmd);
-          // HAL_UART_Transmit(&huart3, (char *)(curTask), 6, 0xFFFF);
           __ACK_TASK_DONE(&huart3, rxMsg);
         }
         else
@@ -1512,7 +1520,7 @@ void runBWTask(void *argument)
   for (;;)
   {
     if (curTask != TASK_MOVE_BACKWARD)
-      osDelay(100);
+      osDelay(1000);
     else
     {
       targetDist = 0;
@@ -1594,14 +1602,14 @@ void runFLTask(void *argument)
 {
   /* USER CODE BEGIN runFLTask */
 
-  // for OLED refresh when debugging
-  osDelay(100);
+  // // for OLED refresh when debugging
+  // osDelay(100);
 
   /* Infinite loop */
   for (;;)
   {
     if (curTask != TASK_FL)
-      osDelay(100);
+      osDelay(1000);
     else
     {
 
@@ -1668,7 +1676,7 @@ void runFRTask(void *argument)
   for (;;)
   {
     if (curTask != TASK_FR)
-      osDelay(100);
+      osDelay(1000);
     else
     {
 
@@ -1736,7 +1744,7 @@ void runBLTask(void *argument)
   for (;;)
   {
     if (curTask != TASK_BL)
-      osDelay(100);
+      osDelay(1000);
     else
     {
 
@@ -1803,7 +1811,7 @@ void runBRTask(void *argument)
   for (;;)
   {
     if (curTask != TASK_BR)
-      osDelay(100);
+      osDelay(1000);
     else
     {
 
@@ -1916,7 +1924,7 @@ void runCmdTask(void *argument)
       //	  	 case 0: // STOP handled in UART IRQ directly
       //	  	  	  break;
     case 1: // FW
-      curTask = TASK_MOVE_FOREWARD;
+      curTask = TASK_MOVE_FORWARD;
       __PEND_CURCMD(curCmd);
       break;
     case 2: // BW
@@ -2058,8 +2066,9 @@ void runMoveDistObsTask(void *argument)
     }
   }
   // Delay(1);
+
+  /* USER CODE END runMoveDistObsTask */
 }
-/* USER CODE END runMoveDistObsTask */
 
 /* USER CODE BEGIN Header_runNavArdObsTask */
 /**
