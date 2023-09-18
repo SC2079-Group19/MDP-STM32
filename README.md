@@ -18,7 +18,7 @@
 #### FA/FC/BA/BC: forward/backward clockwise/anti-clockwise rotation with specified angle
 #### TL/TR: turning left/right max
 
-### Preempt stop:
+### Preemptive stop:
 #### ST
 
 ### Reset turning angle:
