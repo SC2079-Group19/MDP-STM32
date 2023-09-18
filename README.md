@@ -9,6 +9,7 @@
 #### DT:move until a specified distance from the obstacle
 - DT + dist
 
+### Tuning:
 #### FL/FR/BL/BR: Forward left/right, backward left/right
 - FL/FR/BL/BR 00: low speed, move 4cm -> turn 90 degrees -> move 7cm
 - FL/FR/BL/BR 20: medium speed, move 4cm -> turn 90 degrees -> move 7cm
