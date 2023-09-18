@@ -1,12 +1,13 @@
 # MDP-STM32
 
 ## Command
-5 charactres
+5 characters for each command
+
 ### Straight line movement:
 #### FW/BW: Forward/backward
 - FW+ dist/BW+dist: move given distance
 - FW--/BW--: manual mode
-#### DT:move until a specified distance from the obstacle
+#### DT: move until a specified distance from the obstacle
 - DT + dist
 
 ### Tuning:
