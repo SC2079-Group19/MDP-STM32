@@ -334,7 +334,7 @@ void RobotMoveDist(float *targetDist, const uint8_t dir, const uint8_t speedMode
 void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode);
 
 void RobotTurn(float *targetAngle);
-// void RobotTurnFastest(float *targetAngle);
+void RobotTurnFastest(float *targetAngle);
 
 void HCSR04_Read(void);
 
@@ -1263,6 +1263,26 @@ void RobotTurn(float *targetAngle)
   __RESET_SERVO_TURN(&htim1);
 }
 
+void RobotTurnFastest(float *targetAngle)
+{
+  angleNow = 0;
+  gyroZ = 0;
+  last_curTask_tick = HAL_GetTick();
+  do
+  {
+    if (HAL_GetTick() - last_curTask_tick >= 10)
+    { // sample gyro every 10ms
+      __Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
+      angleNow += gyroZ / GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
+      if (abs(angleNow - *targetAngle) < 0.01)
+        break;
+      last_curTask_tick = HAL_GetTick();
+    }
+  } while (1);
+  __SET_MOTOR_DUTY(&htim8, 0, 0);
+  __RESET_SERVO_TURN_FAST(&htim1);
+}
+
 // RobotMoveDistObstacle must be called within a task(eg. runFastestPath) and not within an interrupt(eg. UART, EXTI)
 // else osDelay won't work and TRI's timer interrupt can't be given chance to update obsDist_US
 void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode)
@@ -1690,9 +1710,9 @@ void runFRTask(void *argument)
         // osDelay(10);
         break;
       case 20: // FR20 (outdoor 3x1)
-        // targetDist = 4;
-        // RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
-        // osDelay(10);
+        targetDist = 4;
+        RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        osDelay(10);
         __SET_CMD_CONFIG(cfgs[CONFIG_FR20], &htim8, &htim1, targetAngle);
         RobotTurn(&targetAngle);
         osDelay(10);
@@ -1966,38 +1986,40 @@ void runCmdTask(void *argument)
       __ACK_TASK_DONE(&huart3, rxMsg);
       break;
     case 13: // debug IR sensor
-      curTask = TASK_ADC;
+      // curTask = TASK_ADC;
       break;
     case 14: // DT move until specified distance from obstacle
       curTask = TASK_MOVE_OBS;
       __PEND_CURCMD(curCmd);
       break;
-    // case 15:
-    //   curTask = TASK_BUZZER;
-    //   __PEND_CURCMD(curCmd);
-    //   break;
-    // case 16:
-    //   curTask = TASK_FASTESTPATH;
-    //   __PEND_CURCMD(curCmd);
-    //   break;
-    // case 17:
-    //   curTask = TASK_FASTESTPATH_V2;
-    //   __PEND_CURCMD(curCmd);
-    //   break;
+      // case 15:
+      //   curTask = TASK_BUZZER;
+      //   __PEND_CURCMD(curCmd);
+      //   break;
+      // case 16:
+      //   curTask = TASK_FASTESTPATH;
+      //   __PEND_CURCMD(curCmd);
+      //   break;
+      // case 17:
+      //   curTask = TASK_FASTESTPATH_V2;
+      //   __PEND_CURCMD(curCmd);
+      //   break;
+
+      // FIXME:find the motor duty combination to balance between speed and accuracy
+
     case 88: // FAxxx, forward rotate left by xxx degree
     case 89: // FCxxx, forward rotate right by xxx degree
-             // TODO: ack for FA and FC, BA and BC
       __SET_SERVO_TURN_MAX(&htim1, curCmd.index - 88);
       __SET_MOTOR_DIRECTION(DIR_FORWARD);
       if (curCmd.index == 88)
       {
         targetAngle = curCmd.val;
-        __SET_MOTOR_DUTY(&htim8, 800, 1200);
+        __SET_MOTOR_DUTY(&htim8, 1333, 2000);
       }
       else
       {
         targetAngle = -curCmd.val;
-        __SET_MOTOR_DUTY(&htim8, 1200, 800);
+        __SET_MOTOR_DUTY(&htim8, 2000, 1333);
       }
       __PEND_CURCMD(curCmd);
       RobotTurn(&targetAngle);
@@ -2006,17 +2028,21 @@ void runCmdTask(void *argument)
       break;
     case 90: // BAxxx, backward rotate right by xxx degree
     case 91: // BCxxx, backward rotate left by xxx degree
+
+      // To offset the stm and robot center difference:
+
       __SET_SERVO_TURN_MAX(&htim1, (int)(!(curCmd.index - 90)));
       __SET_MOTOR_DIRECTION(DIR_BACKWARD);
       if (curCmd.index == 90)
       {
+
         targetAngle = curCmd.val;
-        __SET_MOTOR_DUTY(&htim8, 1200, 800);
+        __SET_MOTOR_DUTY(&htim8, 2000, 1333);
       }
       else
       {
         targetAngle = -curCmd.val;
-        __SET_MOTOR_DUTY(&htim8, 800, 1200);
+        __SET_MOTOR_DUTY(&htim8, 1333, 2000);
       }
       __PEND_CURCMD(curCmd);
       RobotTurn(&targetAngle);
