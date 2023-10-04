@@ -247,10 +247,10 @@ CmdConfig cfgs[19] = {
     {900, 1800, SERVO_LEFT_MAX, -90, DIR_BACKWARD}, // BL20
     {1800, 900, SERVO_RIGHT_MAX, 90, DIR_BACKWARD}, // BR20,
 
-    {1500, 1500, SERVO_LEFT_MAX, 90, DIR_FORWARD},   // FL30
-    {1500, 1500, SERVO_RIGHT_MAX, -90, DIR_FORWARD}, // FR30
-    {1500, 1500, SERVO_LEFT_MAX, -90, DIR_BACKWARD}, // BL30
-    {1500, 1100, SERVO_RIGHT_MAX, 90, DIR_BACKWARD}, // BR30
+    {2000, 2000, SERVO_LEFT_MAX, 88, DIR_FORWARD},   // FL30
+    {2000, 2000, SERVO_RIGHT_MAX, -88, DIR_FORWARD}, // FR30
+    {2000, 2000, SERVO_LEFT_MAX, -87, DIR_BACKWARD}, // BL30
+    {2000, 2000, SERVO_RIGHT_MAX, 90, DIR_BACKWARD}, // BR30
 
 };
 
@@ -334,7 +334,7 @@ void RobotMoveDist(float *targetDist, const uint8_t dir, const uint8_t speedMode
 void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode);
 
 void RobotTurn(float *targetAngle);
-// void RobotTurnFastest(float *targetAngle);
+void RobotTurnFastest(float *targetAngle);
 
 void HCSR04_Read(void);
 
@@ -1263,6 +1263,26 @@ void RobotTurn(float *targetAngle)
   __RESET_SERVO_TURN(&htim1);
 }
 
+void RobotTurnFastest(float *targetAngle)
+{
+  angleNow = 0;
+  gyroZ = 0;
+  last_curTask_tick = HAL_GetTick();
+  do
+  {
+    if (HAL_GetTick() - last_curTask_tick >= 10)
+    { // sample gyro every 10ms
+      __Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
+      angleNow += gyroZ / GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
+      if (abs(angleNow - *targetAngle) < 0.01)
+        break;
+      last_curTask_tick = HAL_GetTick();
+    }
+  } while (1);
+  __SET_MOTOR_DUTY(&htim8, 0, 0);
+  __RESET_SERVO_TURN_FAST(&htim1);
+}
+
 // RobotMoveDistObstacle must be called within a task(eg. runFastestPath) and not within an interrupt(eg. UART, EXTI)
 // else osDelay won't work and TRI's timer interrupt can't be given chance to update obsDist_US
 void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode)
@@ -1616,20 +1636,23 @@ void runFLTask(void *argument)
       switch (curCmd.val)
       {
       case 30: // FL30 (4x2)
+        targetDist = 9;
+        RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        // osDelay(10);
         __SET_CMD_CONFIG(cfgs[CONFIG_FL30], &htim8, &htim1, targetAngle);
         RobotTurn(&targetAngle);
-        osDelay(10);
-        // targetDist = 4;
-        // RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        // osDelay(10);
+        targetDist = 4;
+        RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
         // osDelay(10);
         break;
       case 20: // FL20 (outdoor 3x1)
-        // targetDist = 4;
-        // RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        targetDist = 5;
+        RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         // osDelay(10);
         __SET_CMD_CONFIG(cfgs[CONFIG_FL20], &htim8, &htim1, targetAngle);
         RobotTurn(&targetAngle);
-        osDelay(10);
+        // osDelay(10);
         // targetDist = 7;
         // RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         // osDelay(10);
@@ -1637,10 +1660,10 @@ void runFLTask(void *argument)
       default: // FL00 (indoor 3x1)
         targetDist = 4;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
-        osDelay(10);
+        // osDelay(10);
         __SET_CMD_CONFIG(cfgs[CONFIG_FL00], &htim8, &htim1, targetAngle);
         RobotTurn(&targetAngle);
-        osDelay(10);
+        // osDelay(10);
         // targetDist = 7;
         // RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         // osDelay(10);
@@ -1682,17 +1705,20 @@ void runFRTask(void *argument)
       switch (curCmd.val)
       {
       case 30: // FR30 (4x2)
-        __SET_CMD_CONFIG(cfgs[CONFIG_FR30], &htim8, &htim1, targetAngle);
-        RobotTurn(&targetAngle);
-        osDelay(10);
         // targetDist = 2;
         // RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         // osDelay(10);
+        __SET_CMD_CONFIG(cfgs[CONFIG_FR30], &htim8, &htim1, targetAngle);
+        RobotTurn(&targetAngle);
+        // osDelay(10);
+        targetDist = 8;
+        RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
+        // osDelay(10);
         break;
       case 20: // FR20 (outdoor 3x1)
-        // targetDist = 4;
-        // RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
-        // osDelay(10);
+        targetDist = 4;
+        RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        osDelay(10);
         __SET_CMD_CONFIG(cfgs[CONFIG_FR20], &htim8, &htim1, targetAngle);
         RobotTurn(&targetAngle);
         osDelay(10);
@@ -1749,11 +1775,14 @@ void runBLTask(void *argument)
       switch (curCmd.val)
       {
       case 30: // BL30 (4x2)
+        targetDist = 3;
+        RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        // osDelay(10);
         __SET_CMD_CONFIG(cfgs[CONFIG_BL30], &htim8, &htim1, targetAngle);
         RobotTurn(&targetAngle);
-        osDelay(10);
-        // targetDist = 4;
-        // RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
+        // osDelay(10);
+        targetDist = 7;
+        RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
         // osDelay(10);
         break;
       case 20: // BL20 (outdoor 3x1)
@@ -1762,9 +1791,9 @@ void runBLTask(void *argument)
         // osDelay(10);
         __SET_CMD_CONFIG(cfgs[CONFIG_BL20], &htim8, &htim1, targetAngle);
         RobotTurn(&targetAngle);
-        osDelay(10);
-        // targetDist = 7;
-        // RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
+        // osDelay(10);
+        targetDist = 4;
+        RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
         // osDelay(10);
         break;
       default: // BL00 (indoor 3x1)
@@ -1773,10 +1802,10 @@ void runBLTask(void *argument)
         // osDelay(10);
         __SET_CMD_CONFIG(cfgs[CONFIG_BL00], &htim8, &htim1, targetAngle);
         RobotTurn(&targetAngle);
-        osDelay(10);
+        // osDelay(10);
         targetDist = 4;
         RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
-        osDelay(10);
+        // osDelay(10);
         break;
       }
       clickOnce = 0;
@@ -1816,10 +1845,13 @@ void runBRTask(void *argument)
       switch (curCmd.val)
       {
       case 30: // BR30 (4x2)
+        targetDist = 8;
+        RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        // osDelay(10);
         __SET_CMD_CONFIG(cfgs[CONFIG_BR30], &htim8, &htim1, targetAngle);
         RobotTurn(&targetAngle);
-        osDelay(10);
-        // targetDist = 4;
+        // osDelay(10);
+        // targetDist = 2;
         // RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
         // osDelay(10);
         break;
@@ -1829,9 +1861,9 @@ void runBRTask(void *argument)
         // osDelay(10);
         __SET_CMD_CONFIG(cfgs[CONFIG_BR20], &htim8, &htim1, targetAngle);
         RobotTurn(&targetAngle);
-        osDelay(10);
-        // targetDist = 7;
-        // RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
+        // osDelay(10);
+        targetDist = 4;
+        RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
         // osDelay(10);
         break;
       default: // BR00 (indoor 3x1)
@@ -1840,10 +1872,10 @@ void runBRTask(void *argument)
         // osDelay(10);
         __SET_CMD_CONFIG(cfgs[CONFIG_BR00], &htim8, &htim1, targetAngle);
         RobotTurn(&targetAngle);
-        osDelay(10);
+        // osDelay(10);
         targetDist = 4;
         RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
-        osDelay(10);
+        // osDelay(10);
         break;
       }
       clickOnce = 0;
@@ -1966,38 +1998,40 @@ void runCmdTask(void *argument)
       __ACK_TASK_DONE(&huart3, rxMsg);
       break;
     case 13: // debug IR sensor
-      curTask = TASK_ADC;
+      // curTask = TASK_ADC;
       break;
     case 14: // DT move until specified distance from obstacle
       curTask = TASK_MOVE_OBS;
       __PEND_CURCMD(curCmd);
       break;
-    // case 15:
-    //   curTask = TASK_BUZZER;
-    //   __PEND_CURCMD(curCmd);
-    //   break;
-    // case 16:
-    //   curTask = TASK_FASTESTPATH;
-    //   __PEND_CURCMD(curCmd);
-    //   break;
-    // case 17:
-    //   curTask = TASK_FASTESTPATH_V2;
-    //   __PEND_CURCMD(curCmd);
-    //   break;
+      // case 15:
+      //   curTask = TASK_BUZZER;
+      //   __PEND_CURCMD(curCmd);
+      //   break;
+      // case 16:
+      //   curTask = TASK_FASTESTPATH;
+      //   __PEND_CURCMD(curCmd);
+      //   break;
+      // case 17:
+      //   curTask = TASK_FASTESTPATH_V2;
+      //   __PEND_CURCMD(curCmd);
+      //   break;
+
+      // FIXME:find the motor duty combination to balance between speed and accuracy
+
     case 88: // FAxxx, forward rotate left by xxx degree
     case 89: // FCxxx, forward rotate right by xxx degree
-             // TODO: ack for FA and FC, BA and BC
       __SET_SERVO_TURN_MAX(&htim1, curCmd.index - 88);
       __SET_MOTOR_DIRECTION(DIR_FORWARD);
       if (curCmd.index == 88)
       {
         targetAngle = curCmd.val;
-        __SET_MOTOR_DUTY(&htim8, 800, 1200);
+        __SET_MOTOR_DUTY(&htim8, 1333, 2000);
       }
       else
       {
         targetAngle = -curCmd.val;
-        __SET_MOTOR_DUTY(&htim8, 1200, 800);
+        __SET_MOTOR_DUTY(&htim8, 2000, 1333);
       }
       __PEND_CURCMD(curCmd);
       RobotTurn(&targetAngle);
@@ -2006,17 +2040,21 @@ void runCmdTask(void *argument)
       break;
     case 90: // BAxxx, backward rotate right by xxx degree
     case 91: // BCxxx, backward rotate left by xxx degree
+
+      // To offset the stm and robot center difference:
+
       __SET_SERVO_TURN_MAX(&htim1, (int)(!(curCmd.index - 90)));
       __SET_MOTOR_DIRECTION(DIR_BACKWARD);
       if (curCmd.index == 90)
       {
+
         targetAngle = curCmd.val;
-        __SET_MOTOR_DUTY(&htim8, 1200, 800);
+        __SET_MOTOR_DUTY(&htim8, 2000, 1333);
       }
       else
       {
         targetAngle = -curCmd.val;
-        __SET_MOTOR_DUTY(&htim8, 800, 1200);
+        __SET_MOTOR_DUTY(&htim8, 1333, 2000);
       }
       __PEND_CURCMD(curCmd);
       RobotTurn(&targetAngle);
