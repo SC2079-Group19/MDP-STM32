@@ -70,7 +70,7 @@ extern "C"
 // TODO:calibrate
 #define SERVO_LEFT_MAX 70
 #define SERVO_CENTER 145
-#define SERVO_RIGHT_MAX 250
+#define SERVO_RIGHT_MAX 265
 
 #define IR_CONST_A 25644.81557
 #define IR_CONST_B 260.4233354
