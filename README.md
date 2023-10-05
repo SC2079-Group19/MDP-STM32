@@ -11,12 +11,12 @@
 - DT + dist
 
 ### Tuning:
-#### FL/FR/BL/BR: Forward left/right, backward left/right
-- FL/FR/BL/BR 00: low speed, move 4cm -> turn 90 degrees -> move 7cm
-- FL/FR/BL/BR 20: medium speed, move 4cm -> turn 90 degrees -> move 7cm
-- FL/FR/BL/BR 30: high speed, turn 90 degrees -> move 4cm
+#### FL/FR/BL/BR: Forward left/right, backward left/right - for A*
+- FL/FR/BL/BR 00: low speed,
+- FL/FR/BL/BR 20: medium speed
+- FL/FR/BL/BR 30: high speed
 - FL/FR/BL/BR --: manual mode
-#### FA/FC/BA/BC: forward/backward clockwise/anti-clockwise rotation with specified angle
+#### FA/FC/BA/BC: forward/backward clockwise/anti-clockwise rotation with specified angle  - for Dubin
 #### TL/TR: turning left/right max
 
 ### Preemptive stop:
