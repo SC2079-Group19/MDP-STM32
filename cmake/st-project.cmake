@@ -100,6 +100,8 @@ target_sources(
     "Middlewares/Third_Party/FreeRTOS/Source/stream_buffer.c"
     "Middlewares/Third_Party/FreeRTOS/Source/tasks.c"
     "Middlewares/Third_Party/FreeRTOS/Source/timers.c"
+    "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc_ex.c"
+    "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.c"
     "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.c"
     "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma_ex.c"
     "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma.c"
@@ -118,6 +120,7 @@ target_sources(
     "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.c"
     "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.c"
     "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c"
+    "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_adc.c"
 )
 
 add_custom_command(
