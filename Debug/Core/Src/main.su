@@ -22,7 +22,7 @@
 ../Core/Src/main.c:1377:6:RobotTurnFastest	40	static
 ../Core/Src/main.c:1399:6:RobotMoveDistObstacle	16	static
 ../Core/Src/main.c:1457:6:runEncoder	16	static
-../Core/Src/main.c:1527:6:runOledTask	24	static
+../Core/Src/main.c:1527:6:runOledTask	16	static
 ../Core/Src/main.c:1579:6:runFWTask	16	static
 ../Core/Src/main.c:1664:6:runBWTask	16	static
 ../Core/Src/main.c:1750:6:runFLTask	16	static
