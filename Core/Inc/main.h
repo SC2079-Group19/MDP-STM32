@@ -23,30 +23,29 @@
 #define __MAIN_H
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_hal.h"
 
-  /* Private includes ----------------------------------------------------------*/
-  /* USER CODE BEGIN Includes */
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
 
-  /* USER CODE END Includes */
+/* USER CODE END Includes */
 
-  /* Exported types ------------------------------------------------------------*/
-  /* USER CODE BEGIN ET */
+/* Exported types ------------------------------------------------------------*/
+/* USER CODE BEGIN ET */
 
-  /* USER CODE END ET */
+/* USER CODE END ET */
 
-  /* Exported constants --------------------------------------------------------*/
-  /* USER CODE BEGIN EC */
+/* Exported constants --------------------------------------------------------*/
+/* USER CODE BEGIN EC */
 
-  /* USER CODE END EC */
+/* USER CODE END EC */
 
-  /* Exported macro ------------------------------------------------------------*/
-  /* USER CODE BEGIN EM */
+/* Exported macro ------------------------------------------------------------*/
+/* USER CODE BEGIN EM */
 
 #define PI 3.141592654
 #define WHEEL_LENGTH 20
@@ -277,12 +276,25 @@ extern "C"
   _CQ.head = (_CQ.head + 1) % _CQ.size;             \
 })
 
-  /* USER CODE END EM */
+#define __ADC_Read_Dist(_ADC, dataPoint, IR_data_raw_acc, obsDist, obsTick) ({ \
+  HAL_ADC_Start(_ADC);                                                         \
+  HAL_ADC_PollForConversion(_ADC, 20);                                         \
+  IR_data_raw_acc += HAL_ADC_GetValue(_ADC);                                   \
+  dataPoint = (dataPoint + 1) % IR_SAMPLE;                                     \
+  if (dataPoint == IR_SAMPLE - 1)                                              \
+  {                                                                            \
+    obsDist = IR_CONST_A / (IR_data_raw_acc / dataPoint - IR_CONST_B);         \
+    obsTick = IR_data_raw_acc / dataPoint;                                     \
+    IR_data_raw_acc = 0;                                                       \
+  }                                                                            \
+})
 
-  void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+/* USER CODE END EM */
 
-  /* Exported functions prototypes ---------------------------------------------*/
-  void Error_Handler(void);
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+
+/* Exported functions prototypes ---------------------------------------------*/
+void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 
@@ -315,9 +327,9 @@ extern "C"
 #define PWMB_GPIO_Port GPIOC
 #define US_Echo_Pin GPIO_PIN_5
 #define US_Echo_GPIO_Port GPIOB
-  /* USER CODE BEGIN Private defines */
+/* USER CODE BEGIN Private defines */
 
-  /* USER CODE END Private defines */
+/* USER CODE END Private defines */
 
 #ifdef __cplusplus
 }

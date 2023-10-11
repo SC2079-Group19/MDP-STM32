@@ -45,6 +45,9 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+ADC_HandleTypeDef hadc2;
+
 I2C_HandleTypeDef hi2c1;
 
 TIM_HandleTypeDef htim1;
@@ -237,10 +240,10 @@ CmdConfig cfgs[19] = {
     {1200, 800, SERVO_RIGHT_MAX, -90, DIR_FORWARD}, // FR--
     {1200, 800, SERVO_RIGHT_MAX, 90, DIR_BACKWARD}, // BR--
 
-    {800, 2400, SERVO_LEFT_MAX, 89, DIR_FORWARD},     // FL00
-    {2650, 600, SERVO_RIGHT_MAX, -87, DIR_FORWARD},   // FR00
-    {800, 2400, SERVO_LEFT_MAX, -87, DIR_BACKWARD},   // BL00
-    {2550, 650, SERVO_RIGHT_MAX, 85.5, DIR_BACKWARD}, // BR00,
+    {800, 2400, SERVO_LEFT_MAX, 88.20, DIR_FORWARD},   // FL00
+    {2650, 600, SERVO_RIGHT_MAX, -86.9, DIR_FORWARD},  // FR00
+    {800, 2400, SERVO_LEFT_MAX, -85.25, DIR_BACKWARD}, // BL00
+    {2550, 650, SERVO_RIGHT_MAX, 85.7, DIR_BACKWARD},  // BR00
 
     {900, 1800, SERVO_LEFT_MAX, 90, DIR_FORWARD},   // FL20
     {1800, 900, SERVO_RIGHT_MAX, -90, DIR_FORWARD}, // FR20
@@ -280,7 +283,7 @@ enum MOVE_MODE
 };
 enum MOVE_MODE moveMode = FAST;
 
-// ADC
+// Sensors
 uint16_t obsTick_Ultrasonic = 0;
 
 float obsDist_IR_L = 0, obsDist_IR_LR = 0, obsDist_US = 0; // left/right IR and front ultrasonic
@@ -311,6 +314,8 @@ static void MX_TIM2_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM6_Init(void);
+static void MX_ADC1_Init(void);
+static void MX_ADC2_Init(void);
 void runEncoder(void *argument);
 void runOledTask(void *argument);
 void runFWTask(void *argument);
@@ -380,6 +385,8 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM3_Init();
   MX_TIM6_Init();
+  MX_ADC1_Init();
+  MX_ADC2_Init();
   /* USER CODE BEGIN 2 */
 
   // oled
@@ -406,7 +413,9 @@ int main(void)
   HAL_TIM_Base_Start(&htim6);
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2);
 
-  // HAL_TIM_Base_Start(&htim1);
+  // IR
+  // HAL_ADC_Start(&hadc1);
+  // HAL_ADC_Start(&hadc2);
 
   __RESET_SERVO_TURN(&htim1);
 
@@ -558,6 +567,108 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+ * @brief ADC1 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+   */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.ScanConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+   */
+  sConfig.Channel = ADC_CHANNEL_11;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+}
+
+/**
+ * @brief ADC2 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_ADC2_Init(void)
+{
+
+  /* USER CODE BEGIN ADC2_Init 0 */
+
+  /* USER CODE END ADC2_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC2_Init 1 */
+
+  /* USER CODE END ADC2_Init 1 */
+
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+   */
+  hadc2.Instance = ADC2;
+  hadc2.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
+  hadc2.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc2.Init.ScanConvMode = DISABLE;
+  hadc2.Init.ContinuousConvMode = DISABLE;
+  hadc2.Init.DiscontinuousConvMode = DISABLE;
+  hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc2.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc2.Init.NbrOfConversion = 1;
+  hadc2.Init.DMAContinuousRequests = DISABLE;
+  hadc2.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  if (HAL_ADC_Init(&hadc2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+   */
+  sConfig.Channel = ADC_CHANNEL_12;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC2_Init 2 */
+
+  /* USER CODE END ADC2_Init 2 */
 }
 
 /**
@@ -928,8 +1039,8 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOE_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
@@ -1421,18 +1532,36 @@ void runOledTask(void *argument)
   for (;;)
   {
 
-    // angle
+    // angle debugging
     //  angleTemp = angleNow / GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
     //  snprintf(ch, sizeof(ch), "angle:%-4d", (int)angleTemp);
     //  OLED_ShowString(0, 40, (char *)ch);
 
-    // uart received cmd
+    // uart received cmd debugging
     // __ACK_TASK_DONE(&huart3, rxMsg);
     // HAL_UART_Transmit(&huart3, aRxBuffer, RX_BUFFER_SIZE, 0xFFFF);
-    OLED_ShowString(0, 40, (char *)aRxBuffer);
+    // IR_data_raw_acc_R = HAL_ADC_GetValue(&hadc1);
+    // IR_data_raw_acc_L = HAL_ADC_GetValue(&hadc2);
 
+    // ir debugging
+    // HAL_ADC_Start(&hadc1);
+    // HAL_ADC_PollForConversion(&hadc1, 20);
+    // IR_data_raw_acc_R = HAL_ADC_GetValue(&hadc1);
+    // OLED_ShowNumber(0, 10, IR_data_raw_acc_R, 20, 12);
+    // // HAL_ADC_Stop(&hadc1);
+
+    // HAL_ADC_Start(&hadc2);
+    // HAL_ADC_PollForConversion(&hadc2, 20);
+    // IR_data_raw_acc_L = HAL_ADC_GetValue(&hadc2);
+    // OLED_ShowNumber(0, 20, IR_data_raw_acc_L, 20, 12);
+    // // HAL_ADC_Stop(&hadc2);
+
+    // us debugging
     // HCSR04_Read();
     // OLED_ShowNumber(0, 0, obsDist_US, 5, 12);
+
+    // display current command
+    OLED_ShowString(0, 40, (char *)aRxBuffer);
 
     OLED_Refresh_Gram();
     osDelay(100);
@@ -1497,6 +1626,9 @@ void runFWTask(void *argument)
         // for target distance lesser than 10, move mode must be forced to SLOW
         if (targetDist <= 15)
           moveMode = SLOW;
+
+        if (targetDist >= 100)
+          targetDist -= 2;
 
         if (moveMode == SLOW)
         {
@@ -1583,6 +1715,9 @@ void runBWTask(void *argument)
         if (targetDist <= 15)
           moveMode = SLOW;
 
+        if (targetDist >= 100)
+          targetDist -= 2;
+
         if (moveMode == SLOW)
         {
           RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_1);
@@ -1658,7 +1793,7 @@ void runFLTask(void *argument)
         // osDelay(10);
         break;
       default: // FL00 (indoor 3x1)
-        targetDist = 8;
+        targetDist = 11;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
 
         __SET_CMD_CONFIG(cfgs[CONFIG_FL00], &htim8, &htim1, targetAngle);
@@ -1727,14 +1862,14 @@ void runFRTask(void *argument)
         // osDelay(10);
         break;
       default: // FR00 (indoor 3x2)
-        targetDist = 3;
+        targetDist = 3.5;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
 
         __SET_CMD_CONFIG(cfgs[CONFIG_FR00], &htim8, &htim1, targetAngle);
         RobotTurn(&targetAngle);
 
-        // targetDist = 3;
-        // RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        targetDist = 2;
+        RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
 
         break;
       }
@@ -1774,7 +1909,7 @@ void runBLTask(void *argument)
 
       switch (curCmd.val)
       {
-      case 30: // BL30 (3x2)
+      case 30: // BL30 (outdoor 3x2)
         targetDist = 1;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         // osDelay(10);
@@ -1796,14 +1931,14 @@ void runBLTask(void *argument)
         RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
         // osDelay(10);
         break;
-      default: // BL00 (indoor 3x1)
-        targetDist = 7;
+      default: // BL00 (indoor 3x2)
+        targetDist = 1;
         RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
 
         __SET_CMD_CONFIG(cfgs[CONFIG_BL00], &htim8, &htim1, targetAngle);
         RobotTurn(&targetAngle);
 
-        targetDist = 12;
+        targetDist = 8;
         RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
 
         break;
@@ -1867,13 +2002,13 @@ void runBRTask(void *argument)
         // osDelay(10);
         break;
       default: // BR00 (indoor 3x1)
-        targetDist = 3;
-        RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
+        targetDist = 5;
+        RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
 
         __SET_CMD_CONFIG(cfgs[CONFIG_BR00], &htim8, &htim1, targetAngle);
         RobotTurn(&targetAngle);
 
-        targetDist = 10;
+        targetDist = 3;
         RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
 
         break;
@@ -1912,7 +2047,8 @@ void runADCTask(void *argument)
       //			dataPoint = 0; IR_data_raw_acc = 0; obsDist_IR = 1000;
       //			last_curTask_tick = HAL_GetTick();
       __PEND_CURCMD(curCmd);
-      targetDist = 40;
+
+      // targetDist = 40;
       // RobotMoveDistObstacle_IR(&targetDist);
       //			do {
       //				__ADC_Read_Dist(&hadc1, dataPoint, IR_data_raw_acc, obsDist_IR, obsTick_IR);
@@ -1933,6 +2069,7 @@ void runADCTask(void *argument)
         __READ_COMMAND(cQueue, curCmd, rxMsg);
     }
   }
+
   /* USER CODE END runADCTask */
 }
 
