@@ -1787,13 +1787,13 @@ void runFLTask(void *argument)
         // osDelay(10);
         break;
       default: // FL00 (indoor 3x1)
-        targetDist = 9;
+        targetDist = 11;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
 
         __SET_CMD_CONFIG(cfgs[CONFIG_FL00], &htim8, &htim1, targetAngle);
         RobotTurn(&targetAngle);
 
-        targetDist = 1;
+        targetDist = 2;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
 
         break;
