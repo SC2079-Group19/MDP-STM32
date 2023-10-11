@@ -1627,6 +1627,9 @@ void runFWTask(void *argument)
         if (targetDist <= 15)
           moveMode = SLOW;
 
+        if (targetDist >= 100)
+          targetDist -= 2;
+
         if (moveMode == SLOW)
         {
           // HAL_UART_Transmit(&huart3, (uint8_t *)("FW10\r\n"), 6, 0xFFFF);
@@ -1711,6 +1714,9 @@ void runBWTask(void *argument)
         // for target distance lesser than 15, move mode must be forced to SLOW
         if (targetDist <= 15)
           moveMode = SLOW;
+
+        if (targetDist >= 100)
+          targetDist -= 2;
 
         if (moveMode == SLOW)
         {
