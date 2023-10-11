@@ -1926,8 +1926,8 @@ void runBLTask(void *argument)
         // osDelay(10);
         break;
       default: // BL00 (indoor 3x2)
-        // targetDist = 2;
-        // RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
+        targetDist = 1;
+        RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
 
         __SET_CMD_CONFIG(cfgs[CONFIG_BL00], &htim8, &htim1, targetAngle);
         RobotTurn(&targetAngle);
