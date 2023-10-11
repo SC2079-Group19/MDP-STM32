@@ -1856,13 +1856,13 @@ void runFRTask(void *argument)
         // osDelay(10);
         break;
       default: // FR00 (indoor 3x2)
-        targetDist = 3;
+        targetDist = 5;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
 
         __SET_CMD_CONFIG(cfgs[CONFIG_FR00], &htim8, &htim1, targetAngle);
         RobotTurn(&targetAngle);
 
-        targetDist = 4;
+        targetDist = 3;
         RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
 
         break;
