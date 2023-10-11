@@ -2002,7 +2002,7 @@ void runBRTask(void *argument)
         __SET_CMD_CONFIG(cfgs[CONFIG_BR00], &htim8, &htim1, targetAngle);
         RobotTurn(&targetAngle);
 
-        targetDist = 8;
+        targetDist = 6;
         RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
 
         break;
