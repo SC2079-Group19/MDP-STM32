@@ -2239,9 +2239,9 @@ void runTurnATask(void *argument)
         RobotTurn(&targetAngle);
         osDelay(10);
         // FW10
-        targetDist = 10;
-        RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
-        osDelay(10);
+        // targetDist = 10;
+        // RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        // osDelay(10);
         // FA45
         targetAngle = 45;
         __SET_MOTOR_DUTY(&htim8, 1333, 2000);
@@ -2282,9 +2282,9 @@ void runTurnATask(void *argument)
         RobotTurn(&targetAngle);
         osDelay(10);
         // FW10
-        targetDist = 10;
-        RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
-        osDelay(10);
+        // targetDist = 10;
+        // RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        // osDelay(10);
         // FC45
         targetAngle = -45;
         __SET_MOTOR_DUTY(&htim8, 2000, 1333);
