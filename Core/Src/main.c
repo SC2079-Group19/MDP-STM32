@@ -1534,20 +1534,20 @@ void runOledTask(void *argument)
     // IR_data_raw_acc_R = HAL_ADC_GetValue(&hadc1);
     // IR_data_raw_acc_L = HAL_ADC_GetValue(&hadc2);
 
-    // // ir debugging
-    // HAL_ADC_Start(&hadc1);
-    // HAL_ADC_PollForConversion(&hadc1, 20);
-    // IR_data_raw_acc_R = HAL_ADC_GetValue(&hadc1);
-    // OLED_ShowNumber(0, 10, IR_data_raw_acc_R, 20, 12);
-    // HAL_UART_Transmit(&huart3, IR_data_raw_acc_R, 32, 0xFFFF);
-    // // HAL_ADC_Stop(&hadc1);
+    // ir debugging
+    HAL_ADC_Start(&hadc1);
+    HAL_ADC_PollForConversion(&hadc1, 20);
+    IR_data_raw_acc_R = HAL_ADC_GetValue(&hadc1);
+    OLED_ShowNumber(0, 10, IR_data_raw_acc_R, 20, 12);
+    HAL_UART_Transmit(&huart3, IR_data_raw_acc_R, 32, 0xFFFF);
+    // HAL_ADC_Stop(&hadc1);
 
-    // HAL_ADC_Start(&hadc2);
-    // HAL_ADC_PollForConversion(&hadc2, 20);
-    // IR_data_raw_acc_L = HAL_ADC_GetValue(&hadc2);
-    // OLED_ShowNumber(0, 20, IR_data_raw_acc_L, 20, 12);
-    // HAL_UART_Transmit(&huart3, IR_data_raw_acc_L, 32, 0xFFFF);
-    // // HAL_ADC_Stop(&hadc2);
+    HAL_ADC_Start(&hadc2);
+    HAL_ADC_PollForConversion(&hadc2, 20);
+    IR_data_raw_acc_L = HAL_ADC_GetValue(&hadc2);
+    OLED_ShowNumber(0, 20, IR_data_raw_acc_L, 20, 12);
+    HAL_UART_Transmit(&huart3, IR_data_raw_acc_L, 32, 0xFFFF);
+    // HAL_ADC_Stop(&hadc2);
 
     // us debugging
     // HCSR04_Read();
