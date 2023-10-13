@@ -114,13 +114,6 @@ const osThreadAttr_t BRTask_attributes = {
     .stack_size = 128 * 4,
     .priority = (osPriority_t)osPriorityNormal,
 };
-/* Definitions for ADCTask */
-osThreadId_t ADCTaskHandle;
-const osThreadAttr_t ADCTask_attributes = {
-    .name = "ADCTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityNormal,
-};
 /* Definitions for cmdTask */
 osThreadId_t cmdTaskHandle;
 const osThreadAttr_t cmdTask_attributes = {
@@ -135,10 +128,10 @@ const osThreadAttr_t moveDistObsTask_attributes = {
     .stack_size = 128 * 4,
     .priority = (osPriority_t)osPriorityNormal,
 };
-/* Definitions for navArdObsTask */
-osThreadId_t navArdObsTaskHandle;
-const osThreadAttr_t navArdObsTask_attributes = {
-    .name = "navArdObsTask",
+/* Definitions for turnATask */
+osThreadId_t turnATaskHandle;
+const osThreadAttr_t turnATask_attributes = {
+    .name = "turnATask",
     .stack_size = 128 * 4,
     .priority = (osPriority_t)osPriorityNormal,
 };
@@ -269,7 +262,8 @@ enum TASK_TYPE
   TASK_TURN_ANGLE,
   TASK_ADC,
   TASK_MOVE_OBS,
-  TASK_NAV_OBS,
+  TASK_TURN_A,
+
   // TASK_FASTESTPATH,
   // TASK_BUZZER,
   TASK_NONE
@@ -324,10 +318,9 @@ void runFLTask(void *argument);
 void runFRTask(void *argument);
 void runBLTask(void *argument);
 void runBRTask(void *argument);
-void runADCTask(void *argument);
 void runCmdTask(void *argument);
 void runMoveDistObsTask(void *argument);
-void runNavArdObsTask(void *argument);
+void runTurnATask(void *argument);
 
 /* USER CODE BEGIN PFP */
 void PIDConfigInit(PIDConfig *cfg, const float Kp, const float Ki, const float Kd);
@@ -494,17 +487,14 @@ int main(void)
   /* creation of BRTask */
   BRTaskHandle = osThreadNew(runBRTask, NULL, &BRTask_attributes);
 
-  /* creation of ADCTask */
-  ADCTaskHandle = osThreadNew(runADCTask, NULL, &ADCTask_attributes);
-
   /* creation of cmdTask */
   cmdTaskHandle = osThreadNew(runCmdTask, NULL, &cmdTask_attributes);
 
   /* creation of moveDistObsTask */
   moveDistObsTaskHandle = osThreadNew(runMoveDistObsTask, NULL, &moveDistObsTask_attributes);
 
-  /* creation of navArdObsTask */
-  navArdObsTaskHandle = osThreadNew(runNavArdObsTask, NULL, &navArdObsTask_attributes);
+  /* creation of turnATask */
+  turnATaskHandle = osThreadNew(runTurnATask, NULL, &turnATask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -1230,7 +1220,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     __ADD_COMMAND(cQueue, 90, val); // backward anti-clockwise rotation with variable
   else if (aRxBuffer[0] == 'B' && aRxBuffer[1] == 'C')
     __ADD_COMMAND(cQueue, 91, val); // backward clockwise rotation with variable
-
+  else if (aRxBuffer[0] == 'T' && aRxBuffer[1] == 'A')
+    __ADD_COMMAND(cQueue, 92, val);
   if (!__COMMAND_QUEUE_IS_EMPTY(cQueue))
   {
     __READ_COMMAND(cQueue, curCmd, rxMsg);
@@ -1544,17 +1535,19 @@ void runOledTask(void *argument)
     // IR_data_raw_acc_L = HAL_ADC_GetValue(&hadc2);
 
     // ir debugging
-    // HAL_ADC_Start(&hadc1);
-    // HAL_ADC_PollForConversion(&hadc1, 20);
-    // IR_data_raw_acc_R = HAL_ADC_GetValue(&hadc1);
-    // OLED_ShowNumber(0, 10, IR_data_raw_acc_R, 20, 12);
-    // // HAL_ADC_Stop(&hadc1);
+    HAL_ADC_Start(&hadc1);
+    HAL_ADC_PollForConversion(&hadc1, 20);
+    IR_data_raw_acc_R = HAL_ADC_GetValue(&hadc1);
+    OLED_ShowNumber(0, 10, IR_data_raw_acc_R, 20, 12);
+    HAL_UART_Transmit(&huart3, IR_data_raw_acc_R, 32, 0xFFFF);
+    // HAL_ADC_Stop(&hadc1);
 
-    // HAL_ADC_Start(&hadc2);
-    // HAL_ADC_PollForConversion(&hadc2, 20);
-    // IR_data_raw_acc_L = HAL_ADC_GetValue(&hadc2);
-    // OLED_ShowNumber(0, 20, IR_data_raw_acc_L, 20, 12);
-    // // HAL_ADC_Stop(&hadc2);
+    HAL_ADC_Start(&hadc2);
+    HAL_ADC_PollForConversion(&hadc2, 20);
+    IR_data_raw_acc_L = HAL_ADC_GetValue(&hadc2);
+    OLED_ShowNumber(0, 20, IR_data_raw_acc_L, 20, 12);
+    HAL_UART_Transmit(&huart3, IR_data_raw_acc_L, 32, 0xFFFF);
+    // HAL_ADC_Stop(&hadc2);
 
     // us debugging
     // HCSR04_Read();
@@ -1715,12 +1708,12 @@ void runBWTask(void *argument)
         if (targetDist <= 15)
           moveMode = SLOW;
 
-        if (targetDist >= 100)
-          targetDist -= 2;
+        // if (targetDist >= 100)
+        // targetDist -= 2;
 
         if (moveMode == SLOW)
         {
-          RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_1);
+          RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
         }
         else
         {
@@ -2028,51 +2021,6 @@ void runBRTask(void *argument)
   /* USER CODE END runBRTask */
 }
 
-/* USER CODE BEGIN Header_runADCTask */
-/**
- * @brief Function implementing the ADCTask thread.
- * @param argument: Not used
- * @retval None
- */
-/* USER CODE END Header_runADCTask */
-void runADCTask(void *argument)
-{
-  /* USER CODE BEGIN runADCTask */
-  for (;;)
-  {
-    if (curTask != TASK_ADC)
-      osDelay(1000);
-    else
-    {
-      //			dataPoint = 0; IR_data_raw_acc = 0; obsDist_IR = 1000;
-      //			last_curTask_tick = HAL_GetTick();
-      __PEND_CURCMD(curCmd);
-
-      // targetDist = 40;
-      // RobotMoveDistObstacle_IR(&targetDist);
-      //			do {
-      //				__ADC_Read_Dist(&hadc1, dataPoint, IR_data_raw_acc, obsDist_IR, obsTick_IR);
-      //			  osDelay(5);
-      //			} while (1);
-      //
-      //		  __ON_TASK_END(&htim8, prevTask, curTask);
-      //		  HAL_ADC_Stop(&hadc1);
-      clickOnce = 0;
-      prevTask = curTask;
-      curTask = TASK_NONE;
-      if (__COMMAND_QUEUE_IS_EMPTY(cQueue))
-      {
-        __CLEAR_CURCMD(curCmd);
-        __ACK_TASK_DONE(&huart3, rxMsg);
-      }
-      else
-        __READ_COMMAND(cQueue, curCmd, rxMsg);
-    }
-  }
-
-  /* USER CODE END runADCTask */
-}
-
 /* USER CODE BEGIN Header_runCmdTask */
 /**
  * @brief Function implementing the cmdTask thread.
@@ -2198,6 +2146,10 @@ void runCmdTask(void *argument)
       __CLEAR_CURCMD(curCmd);
       __ACK_TASK_DONE(&huart3, rxMsg);
       break;
+    case 92: // TAxx, 01 turn left, 02 turn right --TASK 2
+      curTask = TASK_TURN_A;
+      __PEND_CURCMD(curCmd);
+      break;
     case 99:
       break;
     case 100:
@@ -2248,22 +2200,128 @@ void runMoveDistObsTask(void *argument)
   /* USER CODE END runMoveDistObsTask */
 }
 
-/* USER CODE BEGIN Header_runNavArdObsTask */
+/* USER CODE BEGIN Header_runTurnATask */
 /**
- * @brief Function implementing the navArdObsTask thread.
+ * @brief Function implementing the turnATask thread.
  * @param argument: Not used
  * @retval None
  */
-/* USER CODE END Header_runNavArdObsTask */
-void runNavArdObsTask(void *argument)
+/* USER CODE END Header_runTurnATask */
+void runTurnATask(void *argument)
 {
-  /* USER CODE BEGIN runNavArdObsTask */
+  /* USER CODE BEGIN runTurnATask */
   /* Infinite loop */
   for (;;)
   {
+    if (curTask != TASK_TURN_A)
+      osDelay(1000);
+    else
+    {
+
+      switch (curCmd.val)
+      {
+      case 01: // Turn A right:
+               // TODO: RESET WHEEL, 300 OSDELAY
+               // FC45, FW05, FA90,
+        //  FC45
+        targetAngle = -45;
+        __SET_MOTOR_DUTY(&htim8, 2000, 1333);
+        __SET_SERVO_TURN_MAX(&htim1, 1);
+        __SET_MOTOR_DIRECTION(DIR_FORWARD);
+        RobotTurn(&targetAngle);
+        osDelay(300);
+        // FW5
+        targetDist = 5;
+        RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        osDelay(10);
+        // FA90
+        targetAngle = 90;
+        __SET_MOTOR_DUTY(&htim8, 1333, 2000);
+        __SET_SERVO_TURN_MAX(&htim1, 0);
+        __SET_MOTOR_DIRECTION(DIR_FORWARD);
+        RobotTurn(&targetAngle);
+        osDelay(300);
+        // FW05
+        targetDist = 05;
+        RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        osDelay(10);
+        // // FA45
+        // targetAngle = 45;
+        // __SET_MOTOR_DUTY(&htim8, 1333, 2000);
+        // __SET_SERVO_TURN_MAX(&htim1, 0);
+        // __SET_MOTOR_DIRECTION(DIR_FORWARD);
+        // RobotTurn(&targetAngle);
+        // osDelay(300);
+        // // FW5
+        // targetDist = 5;
+        // RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        // osDelay(10);
+        // FC45
+        targetAngle = -45;
+        __SET_MOTOR_DUTY(&htim8, 2000, 1333);
+        __SET_SERVO_TURN_MAX(&htim1, 1);
+        __SET_MOTOR_DIRECTION(DIR_FORWARD);
+        RobotTurn(&targetAngle);
+        osDelay(300);
+        break;
+
+      case 02: // Turn A left:
+        // FA45
+        targetAngle = 45;
+        __SET_MOTOR_DUTY(&htim8, 1333, 2000);
+        __SET_SERVO_TURN_MAX(&htim1, 0);
+        __SET_MOTOR_DIRECTION(DIR_FORWARD);
+        RobotTurn(&targetAngle);
+        osDelay(300);
+        // FW5
+        targetDist = 5;
+        RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        osDelay(10);
+        // FC90
+        targetAngle = -90;
+        __SET_MOTOR_DUTY(&htim8, 2000, 1333);
+        __SET_SERVO_TURN_MAX(&htim1, 1);
+        __SET_MOTOR_DIRECTION(DIR_FORWARD);
+        RobotTurn(&targetAngle);
+        osDelay(300);
+        // // FW10
+        // targetDist = 10;
+        // RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        // osDelay(10);
+        // // FC45
+        // targetAngle = -45;
+        // __SET_MOTOR_DUTY(&htim8, 2000, 1333);
+        // __SET_SERVO_TURN_MAX(&htim1, 1);
+        // __SET_MOTOR_DIRECTION(DIR_FORWARD);
+        // RobotTurn(&targetAngle);
+        // osDelay(300);
+        // FW05
+        targetDist = 5;
+        RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+        osDelay(10);
+        // FA45
+        targetAngle = 45;
+        __SET_MOTOR_DUTY(&htim8, 1333, 2000);
+        __SET_SERVO_TURN_MAX(&htim1, 0);
+        __SET_MOTOR_DIRECTION(DIR_FORWARD);
+        RobotTurn(&targetAngle);
+        osDelay(300);
+        break;
+      }
+      clickOnce = 0;
+      prevTask = curTask;
+      curTask = TASK_NONE;
+      if (__COMMAND_QUEUE_IS_EMPTY(cQueue))
+      {
+        __CLEAR_CURCMD(curCmd);
+        __ACK_TASK_DONE(&huart3, rxMsg);
+      }
+      else
+        __READ_COMMAND(cQueue, curCmd, rxMsg);
+    }
     osDelay(1);
   }
-  /* USER CODE END runNavArdObsTask */
+  /* USER CODE END runTurnATask */
 }
 
 /**
