@@ -32,5 +32,5 @@
 ../Core/Src/main.c:2029:6:runCmdTask	21
 ../Core/Src/main.c:2171:6:runMoveDistObsTask	3
 ../Core/Src/main.c:2208:6:runTurnATask	5
-../Core/Src/main.c:2293:6:HAL_TIM_PeriodElapsedCallback	2
-../Core/Src/main.c:2311:6:Error_Handler	1
+../Core/Src/main.c:2301:6:HAL_TIM_PeriodElapsedCallback	2
+../Core/Src/main.c:2319:6:Error_Handler	1

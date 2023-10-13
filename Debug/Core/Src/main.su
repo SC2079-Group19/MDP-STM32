@@ -32,5 +32,5 @@
 ../Core/Src/main.c:2029:6:runCmdTask	16	static
 ../Core/Src/main.c:2171:6:runMoveDistObsTask	16	static
 ../Core/Src/main.c:2208:6:runTurnATask	16	static
-../Core/Src/main.c:2293:6:HAL_TIM_PeriodElapsedCallback	16	static
-../Core/Src/main.c:2311:6:Error_Handler	4	static,ignoring_inline_asm
+../Core/Src/main.c:2301:6:HAL_TIM_PeriodElapsedCallback	16	static
+../Core/Src/main.c:2319:6:Error_Handler	4	static,ignoring_inline_asm

@@ -2222,48 +2222,56 @@ void runTurnATask(void *argument)
         // FC45
         targetAngle = -45;
         __SET_MOTOR_DUTY(&htim8, 2000, 1333);
+        RobotTurn(&targetAngle);
         // FW5
         targetDist = 5;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         // FA45
         targetAngle = 45;
         __SET_MOTOR_DUTY(&htim8, 1333, 2000);
+        RobotTurn(&targetAngle);
         // FW10
         targetDist = 10;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         // FA45
         targetAngle = 45;
         __SET_MOTOR_DUTY(&htim8, 1333, 2000);
+        RobotTurn(&targetAngle);
         // FW5
         targetDist = 5;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         // FC45
         targetAngle = -45;
         __SET_MOTOR_DUTY(&htim8, 2000, 1333);
+        RobotTurn(&targetAngle);
         break;
 
       case 02: // Tuan A left:
         // FA45
         targetAngle = 45;
         __SET_MOTOR_DUTY(&htim8, 1333, 2000);
+        RobotTurn(&targetAngle);
         // FW5
         targetDist = 5;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         // FC45
         targetAngle = -45;
         __SET_MOTOR_DUTY(&htim8, 2000, 1333);
+        RobotTurn(&targetAngle);
         // FW10
         targetDist = 10;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         // FC45
         targetAngle = -45;
         __SET_MOTOR_DUTY(&htim8, 2000, 1333);
+        RobotTurn(&targetAngle);
         // FW5
         targetDist = 5;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         // FA45
         targetAngle = 45;
-        __SET_MOTOR_DUTY(&htim8, 1333, 200);
+        __SET_MOTOR_DUTY(&htim8, 1333, 2000);
+        RobotTurn(&targetAngle);
         break;
       }
       clickOnce = 0;
