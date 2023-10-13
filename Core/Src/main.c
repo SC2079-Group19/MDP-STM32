@@ -1534,17 +1534,19 @@ void runOledTask(void *argument)
     // IR_data_raw_acc_R = HAL_ADC_GetValue(&hadc1);
     // IR_data_raw_acc_L = HAL_ADC_GetValue(&hadc2);
 
-    // ir debugging
+    // // ir debugging
     // HAL_ADC_Start(&hadc1);
     // HAL_ADC_PollForConversion(&hadc1, 20);
     // IR_data_raw_acc_R = HAL_ADC_GetValue(&hadc1);
     // OLED_ShowNumber(0, 10, IR_data_raw_acc_R, 20, 12);
+    // HAL_UART_Transmit(&huart3, IR_data_raw_acc_R, 32, 0xFFFF);
     // // HAL_ADC_Stop(&hadc1);
 
     // HAL_ADC_Start(&hadc2);
     // HAL_ADC_PollForConversion(&hadc2, 20);
     // IR_data_raw_acc_L = HAL_ADC_GetValue(&hadc2);
     // OLED_ShowNumber(0, 20, IR_data_raw_acc_L, 20, 12);
+    // HAL_UART_Transmit(&huart3, IR_data_raw_acc_L, 32, 0xFFFF);
     // // HAL_ADC_Stop(&hadc2);
 
     // us debugging
@@ -2219,80 +2221,81 @@ void runTurnATask(void *argument)
       switch (curCmd.val)
       {
       case 01: // Turn A right:
-
-        // FC45
+               // TODO: RESET WHEEL, 300 OSDELAY
+               // FC45, FW05, FA90,
+        //  FC45
         targetAngle = -45;
         __SET_MOTOR_DUTY(&htim8, 2000, 1333);
         __SET_SERVO_TURN_MAX(&htim1, 1);
         __SET_MOTOR_DIRECTION(DIR_FORWARD);
         RobotTurn(&targetAngle);
-        osDelay(10);
+        osDelay(300);
         // FW5
         targetDist = 5;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         osDelay(10);
-        // FA45
-        targetAngle = 45;
+        // FA90
+        targetAngle = 90;
         __SET_MOTOR_DUTY(&htim8, 1333, 2000);
         __SET_SERVO_TURN_MAX(&htim1, 0);
         __SET_MOTOR_DIRECTION(DIR_FORWARD);
         RobotTurn(&targetAngle);
+        osDelay(300);
+        // FW05
+        targetDist = 05;
+        RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         osDelay(10);
-        // FW10
-        // targetDist = 10;
+        // // FA45
+        // targetAngle = 45;
+        // __SET_MOTOR_DUTY(&htim8, 1333, 2000);
+        // __SET_SERVO_TURN_MAX(&htim1, 0);
+        // __SET_MOTOR_DIRECTION(DIR_FORWARD);
+        // RobotTurn(&targetAngle);
+        // osDelay(300);
+        // // FW5
+        // targetDist = 5;
         // RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         // osDelay(10);
-        // FA45
-        targetAngle = 45;
-        __SET_MOTOR_DUTY(&htim8, 1333, 2000);
-        __SET_SERVO_TURN_MAX(&htim1, 0);
-        __SET_MOTOR_DIRECTION(DIR_FORWARD);
-        RobotTurn(&targetAngle);
-        osDelay(10);
-        // FW5
-        targetDist = 5;
-        RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
-        osDelay(10);
         // FC45
         targetAngle = -45;
         __SET_MOTOR_DUTY(&htim8, 2000, 1333);
         __SET_SERVO_TURN_MAX(&htim1, 1);
         __SET_MOTOR_DIRECTION(DIR_FORWARD);
         RobotTurn(&targetAngle);
-        osDelay(10);
+        osDelay(300);
         break;
 
-      case 02: // Tuan A left:
+      case 02: // Turn A left:
         // FA45
         targetAngle = 45;
         __SET_MOTOR_DUTY(&htim8, 1333, 2000);
         __SET_SERVO_TURN_MAX(&htim1, 0);
         __SET_MOTOR_DIRECTION(DIR_FORWARD);
         RobotTurn(&targetAngle);
-        osDelay(10);
+        osDelay(300);
         // FW5
         targetDist = 5;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         osDelay(10);
-        // FC45
-        targetAngle = -45;
+        // FC90
+        targetAngle = -90;
         __SET_MOTOR_DUTY(&htim8, 2000, 1333);
         __SET_SERVO_TURN_MAX(&htim1, 1);
         __SET_MOTOR_DIRECTION(DIR_FORWARD);
         RobotTurn(&targetAngle);
-        osDelay(10);
-        // FW10
+        osDelay(300);
+        // // FW10
         // targetDist = 10;
         // RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         // osDelay(10);
-        // FC45
-        targetAngle = -45;
-        __SET_MOTOR_DUTY(&htim8, 2000, 1333);
-        __SET_SERVO_TURN_MAX(&htim1, 1);
-        __SET_MOTOR_DIRECTION(DIR_FORWARD);
-        RobotTurn(&targetAngle);
-        osDelay(10);
-        // FW5
+        // // FC45
+        // targetAngle = -45;
+        // __SET_MOTOR_DUTY(&htim8, 2000, 1333);
+        // __SET_SERVO_TURN_MAX(&htim1, 1);
+        // __SET_MOTOR_DIRECTION(DIR_FORWARD);
+        // RobotTurn(&targetAngle);
+        // osDelay(300);
+        // FW05
         targetDist = 5;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         osDelay(10);
@@ -2302,7 +2305,7 @@ void runTurnATask(void *argument)
         __SET_SERVO_TURN_MAX(&htim1, 0);
         __SET_MOTOR_DIRECTION(DIR_FORWARD);
         RobotTurn(&targetAngle);
-        osDelay(10);
+        osDelay(300);
         break;
       }
       clickOnce = 0;
