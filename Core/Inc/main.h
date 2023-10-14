@@ -168,7 +168,7 @@ extern "C"
   dataPoint_L = (dataPoint_L + 1) % IR_SAMPLE;                                             \
   if (dataPoint_L == IR_SAMPLE - 1)                                                        \
   {                                                                                        \
-    obsDist_L = IR_CONST_A_L / (IR_data_raw_acc_L / dataPoint_L - IR_CONST_B_L);           \
+    obsDist_L = (IR_data_raw_acc_L / dataPoint_L - IR_CONST_B_L) / IR_CONST_A_L;           \
     obsTick_L = IR_data_raw_acc_L / dataPoint_L;                                           \
     IR_data_raw_acc_L = 0;                                                                 \
   }                                                                                        \
