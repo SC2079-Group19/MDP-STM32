@@ -23,29 +23,30 @@
 #define __MAIN_H
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_hal.h"
 
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
+  /* Private includes ----------------------------------------------------------*/
+  /* USER CODE BEGIN Includes */
 
-/* USER CODE END Includes */
+  /* USER CODE END Includes */
 
-/* Exported types ------------------------------------------------------------*/
-/* USER CODE BEGIN ET */
+  /* Exported types ------------------------------------------------------------*/
+  /* USER CODE BEGIN ET */
 
-/* USER CODE END ET */
+  /* USER CODE END ET */
 
-/* Exported constants --------------------------------------------------------*/
-/* USER CODE BEGIN EC */
+  /* Exported constants --------------------------------------------------------*/
+  /* USER CODE BEGIN EC */
 
-/* USER CODE END EC */
+  /* USER CODE END EC */
 
-/* Exported macro ------------------------------------------------------------*/
-/* USER CODE BEGIN EM */
+  /* Exported macro ------------------------------------------------------------*/
+  /* USER CODE BEGIN EM */
 
 #define PI 3.141592654
 #define WHEEL_LENGTH 20
@@ -66,14 +67,15 @@ extern "C" {
 
 #define SERVO_TURN_TIME 300
 
-// TODO:calibrate
 #define SERVO_LEFT_MAX 70
 #define SERVO_CENTER 145
 #define SERVO_RIGHT_MAX 265
 
-#define IR_CONST_A 25644.81557
-#define IR_CONST_B 260.4233354
-#define IR_SAMPLE 100
+#define IR_CONST_A_R -63.19418
+#define IR_CONST_B_R 3374.4801644823365
+#define IR_CONST_A_L 25644.81557
+#define IR_CONST_B_L 260.4233354
+#define IR_SAMPLE 5
 
 #define INIT_DUTY_SPT_L 1200
 #define INIT_DUTY_SPT_R 1200
@@ -147,17 +149,29 @@ extern "C" {
   gyroZ = readGyroData[0] << 8 | readGyroData[1];                                                                                                          \
 })
 
-#define __ADC_Read_Dist(_ADC, dataPoint, IR_data_raw_acc, obsDist, obsTick) ({ \
-  HAL_ADC_Start(_ADC);                                                         \
-  HAL_ADC_PollForConversion(_ADC, 20);                                         \
-  IR_data_raw_acc += HAL_ADC_GetValue(_ADC);                                   \
-  dataPoint = (dataPoint + 1) % IR_SAMPLE;                                     \
-  if (dataPoint == IR_SAMPLE - 1)                                              \
-  {                                                                            \
-    obsDist = IR_CONST_A / (IR_data_raw_acc / dataPoint - IR_CONST_B);         \
-    obsTick = IR_data_raw_acc / dataPoint;                                     \
-    IR_data_raw_acc = 0;                                                       \
-  }                                                                            \
+#define __ADC_Read_Dist_R(_ADC_R, dataPoint_R, IR_data_raw_acc_R, obsDist_R, obsTick_R) ({ \
+  HAL_ADC_Start(_ADC_R);                                                                   \
+  HAL_ADC_PollForConversion(_ADC_R, 20);                                                   \
+  IR_data_raw_acc_R += HAL_ADC_GetValue(_ADC_R);                                           \
+  dataPoint_R = (dataPoint_R + 1) % IR_SAMPLE;                                             \
+  if (dataPoint_R == IR_SAMPLE - 1)                                                        \
+  {                                                                                        \
+    obsDist_R = (IR_data_raw_acc_R / dataPoint_R - IR_CONST_B_R) / IR_CONST_A_R;           \
+    obsTick_R = IR_data_raw_acc_R / dataPoint_R;                                           \
+    IR_data_raw_acc_R = 0;                                                                 \
+  }                                                                                        \
+})
+#define __ADC_Read_Dist_L(_ADC_L, dataPoint_L, IR_data_raw_acc_L, obsDist_L, obsTick_L) ({ \
+  HAL_ADC_Start(_ADC_L);                                                                   \
+  HAL_ADC_PollForConversion(_ADC_L, 20);                                                   \
+  IR_data_raw_acc_L += HAL_ADC_GetValue(_ADC_L);                                           \
+  dataPoint_L = (dataPoint_L + 1) % IR_SAMPLE;                                             \
+  if (dataPoint_L == IR_SAMPLE - 1)                                                        \
+  {                                                                                        \
+    obsDist_L = IR_CONST_A_L / (IR_data_raw_acc_L / dataPoint_L - IR_CONST_B_L);           \
+    obsTick_L = IR_data_raw_acc_L / dataPoint_L;                                           \
+    IR_data_raw_acc_L = 0;                                                                 \
+  }                                                                                        \
 })
 
 #define __PID_SPEED_T(cfg, error, correction, dir, newDutyL, newDutyR) ({                                                    \
@@ -289,12 +303,12 @@ extern "C" {
   }                                                                            \
 })
 
-/* USER CODE END EM */
+  /* USER CODE END EM */
 
-void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+  void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
-/* Exported functions prototypes ---------------------------------------------*/
-void Error_Handler(void);
+  /* Exported functions prototypes ---------------------------------------------*/
+  void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 
@@ -327,9 +341,9 @@ void Error_Handler(void);
 #define PWMB_GPIO_Port GPIOC
 #define US_Echo_Pin GPIO_PIN_5
 #define US_Echo_GPIO_Port GPIOB
-/* USER CODE BEGIN Private defines */
+  /* USER CODE BEGIN Private defines */
 
-/* USER CODE END Private defines */
+  /* USER CODE END Private defines */
 
 #ifdef __cplusplus
 }
