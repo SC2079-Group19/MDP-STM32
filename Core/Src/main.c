@@ -348,7 +348,7 @@ void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode);
 
 void RobotTurn(float *targetAngle);
 void RobotTurnFastest(float *targetAngle);
-void RobotMoveUntilIROvershoot(int isRight);
+void RobotMoveUntilIROvershoot(int isIR_R);
 
 void HCSR04_Read(void);
 
@@ -1442,7 +1442,7 @@ void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode)
   HAL_TIM_IC_Stop_IT(&htim3, TIM_CHANNEL_2);
 }
 
-void RobotMoveUntilIROvershoot(int isRight)
+void RobotMoveUntilIROvershoot(int isIR_R)
 {
   PIDConfigReset(&pidTSlow);
   PIDConfigReset(&pidSlow);
@@ -1452,7 +1452,7 @@ void RobotMoveUntilIROvershoot(int isRight)
   angleNow = 0;
   gyroZ = 0;
   last_curTask_tick = HAL_GetTick();
-  if (isRight)
+  if (isIR_R)
   {
     do
     {
