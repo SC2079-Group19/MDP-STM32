@@ -300,23 +300,25 @@ enum MOVE_MODE
 };
 enum MOVE_MODE moveMode = FAST;
 
-// US
-uint16_t obsTick_Ultrasonic = 0;
+// Distance memorizarion
+uint16_t distMem = 0;
+uint16_t lastDistTick_distMem = 0;
 
 // IR
 uint16_t obsTick_IR_R = 0;
 uint16_t obsTick_IR_L = 0;
-
 uint8_t obsDist_IR_L = 0, obsDist_IR_R = 0; // left/right IR
 uint8_t obsDist_IR = 0;
-float obsDist_US = 0; // ultrasonic
 uint32_t IR_data_raw_acc = 0, dataPoint = 0;
 uint16_t dataPoint_R = 0;
 uint16_t dataPoint_L = 0;
 uint32_t IR_data_raw_acc_R = 0;
 uint32_t IR_data_raw_acc_L = 0;
 
+// ultrasonic
+float obsDist_US = 0;
 uint32_t US_data_raw_acc = 0;
+uint16_t obsTick_Ultrasonic = 0;
 
 float speedScale = 1;
 // uint16_t pwmVal = 1000;
@@ -364,6 +366,7 @@ void StraightLineMoveSpeedScale(const uint8_t speedMode, float *speedScale);
 void RobotMoveDist(float *targetDist, const uint8_t dir, const uint8_t speedMode);
 void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode);
 void RobotMoveDistObstacleMem(float *targetDist, const uint8_t speedMode);
+void RobotMoveDistObstacleMemBack(const uint8_t speedMode);
 
 void RobotTurn(float *targetAngle);
 void RobotTurnFastest(float *targetAngle);
@@ -1152,10 +1155,10 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 }
 
 int clickOnce = 0;
-int targetD = 5;
-uint8_t tempDir = 1;
-int8_t step = 0;
-uint8_t turnMode = 2;
+// int targetD = 5;
+// uint8_t tempDir = 1;
+// int8_t step = 0;
+// uint8_t turnMode = 2;
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
   // TODO: add delimeter at end of command
@@ -1444,6 +1447,56 @@ void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode)
   {
     HCSR04_Read();
     osDelay(10); // give timer interrupt chance to update obsDist_US value
+    if (abs(*targetDist - obsDist_US) < 0.1)
+      break;
+    __SET_MOTOR_DIRECTION(obsDist_US >= *targetDist);
+    if (HAL_GetTick() - last_curTask_tick >= 20)
+    {
+      if (speedMode == SPEED_MODE_1)
+      {
+        speedScale = abs(obsDist_US - *targetDist) / 15; // slow down at 15cm
+        speedScale = speedScale > 1 ? 1 : (speedScale < 0.75 ? 0.75 : speedScale);
+        StraightLineMoveSpeedScale(SPEED_MODE_1, &speedScale);
+      }
+      else
+      {
+        speedScale = abs(obsDist_US - *targetDist) / 15; // slow down at 15cm
+        speedScale = speedScale > 1 ? 1 : (speedScale < 0.4 ? 0.4 : speedScale);
+        StraightLineMoveSpeedScale(SPEED_MODE_2, &speedScale);
+      }
+
+      last_curTask_tick = HAL_GetTick();
+    }
+
+  } while (1);
+
+  __SET_MOTOR_DUTY(&htim8, 0, 0);
+  HAL_TIM_IC_Stop_IT(&htim3, TIM_CHANNEL_2);
+}
+
+// Memorize the distance travelled when executing TD command
+void RobotMoveDistObstacleMem(float *targetDist, const uint8_t speedMode)
+{
+  angleNow = 0;
+  gyroZ = 0;
+  PIDConfigReset(&pidTSlow);
+  PIDConfigReset(&pidSlow);
+  PIDConfigReset(&pidFast);
+  obsDist_US = 1000;
+  HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2); // Ultrasonic sensor start
+  last_curTask_tick = HAL_GetTick();
+
+  distMem = 0;
+  uint16_t distMem_DL = 0;
+
+  do
+  {
+    HCSR04_Read();
+    osDelay(10); // give timer interrupt chance to update obsDist_US value
+
+    __GET_ENCODER_TICK_DELTA(&htim2, lastDistTick_distMem, distMem_DL);
+    distMem += distMem_DL;
+
     if (abs(*targetDist - obsDist_US) < 0.1)
       break;
     __SET_MOTOR_DIRECTION(obsDist_US >= *targetDist);
