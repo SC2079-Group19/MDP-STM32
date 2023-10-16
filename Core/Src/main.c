@@ -283,7 +283,7 @@ enum TASK_TYPE
   TASK_TURN_ANGLE,
   TASK_ADC,
   TASK_MOVE_OBS,
-  TASK_MOVE_OBS_RECORD,
+  TASK_MOVE_OBS_MEM,
   TASK_TURN_A,
   // TASK_TURN_B,
   TASK_TURN_IR,
@@ -301,7 +301,7 @@ enum MOVE_MODE
 enum MOVE_MODE moveMode = FAST;
 
 // Distance memorizarion
-uint16_t distMem = 0;
+uint16_t distMemTick = 0;
 uint16_t lastDistTick_distMem = 0;
 
 // IR
@@ -364,9 +364,9 @@ void PIDConfigReset(PIDConfig *cfg);
 void StraightLineMove(const uint8_t speedMode);
 void StraightLineMoveSpeedScale(const uint8_t speedMode, float *speedScale);
 void RobotMoveDist(float *targetDist, const uint8_t dir, const uint8_t speedMode);
+void RobotMoveTick(uint16_t *targetTick, const uint8_t dir, uint8_t speedMode);
 void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode);
 void RobotMoveDistObstacleMem(float *targetDist, const uint8_t speedMode);
-void RobotMoveDistObstacleMemBack(const uint8_t speedMode);
 
 void RobotTurn(float *targetAngle);
 void RobotTurnFastest(float *targetAngle);
@@ -1325,6 +1325,17 @@ void StraightLineMove(const uint8_t speedMode)
   __SET_MOTOR_DUTY(&htim8, newDutyL, newDutyR);
 }
 
+/**
+ * @brief Moves the robot a certain distance in a specified direction and speed mode.
+ *
+ * @param targetDist Pointer to the target distance to move.
+ * @param dir The direction to move the robot in.
+ * @param speedMode The speed mode to use for the movement.
+ */
+void RobotMoveDist(float *targetDist, const uint8_t dir, const uint8_t speedMode)
+{
+  // function body
+}
 void RobotMoveDist(float *targetDist, const uint8_t dir, const uint8_t speedMode)
 {
   angleNow = 0;
@@ -1334,9 +1345,6 @@ void RobotMoveDist(float *targetDist, const uint8_t dir, const uint8_t speedMode
   PIDConfigReset(&pidFast);
   curDistTick = 0;
   dist_dL = 0;
-
-  // char distBuf[70];
-
   __GET_TARGETTICK(*targetDist, targetDistTick);
 
   last_curTask_tick = HAL_GetTick();
@@ -1347,12 +1355,58 @@ void RobotMoveDist(float *targetDist, const uint8_t dir, const uint8_t speedMode
 
     __GET_ENCODER_TICK_DELTA(&htim2, lastDistTick_L, dist_dL);
     curDistTick += dist_dL;
-
-    // sprintf(distBuf, "curtick: %d lasttick: %d dl: %d tar: %d cur: %d \r\n", 0, lastDistTick_L, dist_dL, targetDistTick, curDistTick);
-
-    // HAL_UART_Transmit(&huart3, distBuf, strlen(distBuf), 0xFFFF);
-
     if (curDistTick >= targetDistTick)
+      break;
+
+    if (HAL_GetTick() - last_curTask_tick >= 10)
+    {
+      if (speedMode == SPEED_MODE_T)
+      {
+        StraightLineMove(SPEED_MODE_T);
+      }
+      else
+      {
+        speedScale = abs(curDistTick - targetDistTick) / 990; // start to slow down at last 990 ticks (15cm)
+        if (speedMode == SPEED_MODE_1)
+          speedScale = speedScale > 1 ? 1 : (speedScale < 0.75 ? 0.75 : speedScale);
+        else if (speedMode == SPEED_MODE_2)
+          speedScale = speedScale > 1 ? 1 : (speedScale < 0.4 ? 0.4 : speedScale);
+        StraightLineMoveSpeedScale(speedMode, &speedScale);
+      }
+
+      last_curTask_tick = HAL_GetTick();
+    }
+  } while (1);
+  __SET_MOTOR_DUTY(&htim8, 0, 0);
+}
+
+/**
+ * @brief Moves the robot in a straight line for a specified number of encoder ticks.
+ *
+ * @param targetTick Pointer to the target number of encoder ticks to move the robot.
+ * @param dir The direction to move the robot in (1 for forward, 0 for backward).
+ * @param speedMode The speed mode to use for the movement (SPEED_MODE_T, SPEED_MODE_1, or SPEED_MODE_2).
+ */
+void RobotMoveTick(uint16_t *targetTick, const uint8_t dir, uint8_t speedMode)
+{
+  angleNow = 0;
+  gyroZ = 0; // reset angle for PID
+  PIDConfigReset(&pidTSlow);
+  PIDConfigReset(&pidSlow);
+  PIDConfigReset(&pidFast);
+  curDistTick = 0;
+  dist_dL = 0;
+
+  last_curTask_tick = HAL_GetTick();
+  __SET_MOTOR_DIRECTION(dir);
+  __SET_ENCODER_LAST_TICK(&htim2, lastDistTick_L);
+  do
+  {
+
+    __GET_ENCODER_TICK_DELTA(&htim2, lastDistTick_L, dist_dL);
+    curDistTick += dist_dL;
+
+    if (curDistTick >= targetTick)
       break;
 
     if (HAL_GetTick() - last_curTask_tick >= 10)
@@ -1475,6 +1529,12 @@ void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode)
 }
 
 // Memorize the distance travelled when executing TD command
+/**
+ * @brief Moves the robot a certain distance while avoiding obstacles and updates the distance traveled in memory.
+ *
+ * @param targetDist Pointer to the target distance to be traveled.
+ * @param speedMode The speed mode to be used for the movement.
+ */
 void RobotMoveDistObstacleMem(float *targetDist, const uint8_t speedMode)
 {
   angleNow = 0;
@@ -1486,7 +1546,7 @@ void RobotMoveDistObstacleMem(float *targetDist, const uint8_t speedMode)
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2); // Ultrasonic sensor start
   last_curTask_tick = HAL_GetTick();
 
-  distMem = 0;
+  distMemTick = 0;
   uint16_t distMem_DL = 0;
 
   do
@@ -1495,7 +1555,7 @@ void RobotMoveDistObstacleMem(float *targetDist, const uint8_t speedMode)
     osDelay(10); // give timer interrupt chance to update obsDist_US value
 
     __GET_ENCODER_TICK_DELTA(&htim2, lastDistTick_distMem, distMem_DL);
-    distMem += distMem_DL;
+    distMemTick += distMem_DL;
 
     if (abs(*targetDist - obsDist_US) < 0.1)
       break;
@@ -1524,6 +1584,12 @@ void RobotMoveDistObstacleMem(float *targetDist, const uint8_t speedMode)
   HAL_TIM_IC_Stop_IT(&htim3, TIM_CHANNEL_2);
 }
 
+/**
+ * @brief Moves the robot until it overshoots the IR sensor reading.
+ *
+ * @param isIR_R Determines whether to use the right or left IR sensor.
+ *                1 for right, 0 for left.
+ */
 void RobotMoveUntilIROvershoot(int isIR_R)
 {
   PIDConfigReset(&pidTSlow);
@@ -1576,6 +1642,13 @@ void RobotMoveUntilIROvershoot(int isIR_R)
     HAL_ADC_Stop(&hadc2);
   }
 }
+
+/**
+ * @brief Moves the robot until the IR sensor detects an obstacle at a close distance.
+ *
+ * @param isIR_R Flag to indicate if the right IR sensor is being used.
+ *                1 if right IR sensor is being used, 0 if left IR sensor is being used.
+ */
 void RobotMoveUntilIRCloseDist(int isIR_R)
 {
   PIDConfigReset(&pidTSlow);
@@ -2252,7 +2325,7 @@ void runCmdTask(void *argument)
       __PEND_CURCMD(curCmd);
       break;
     case 15: // TD move until specified distance from obstacle, record the distance
-      curTask = TASK_MOVE_OBS_RECORD;
+      curTask = TASK_MOVE_OBS_MEM;
       __PEND_CURCMD(curCmd);
       break;
     case 88: // FAxxx, forward rotate left by xxx degree
@@ -2352,8 +2425,8 @@ void runMoveDistObsTask(void *argument)
       else
         __READ_COMMAND(cQueue, curCmd, rxMsg);
     }
+    osDelay(1);
   }
-  osDelay(1);
 
   /* USER CODE END runMoveDistObsTask */
 }
@@ -2557,6 +2630,27 @@ void runTDTask(void *argument)
   /* Infinite loop */
   for (;;)
   {
+    if (curTask != TASK_MOVE_OBS_MEM)
+      osDelay(1000);
+    else
+    {
+      targetDist = (float)curCmd.val;
+
+      RobotMoveDistObstacleMem(&targetDist, SPEED_MODE_2);
+
+      RobotMoveTick(&distMemTick, DIR_BACKWARD, SPEED_MODE_2);
+
+      __ON_TASK_END(&htim8, prevTask, curTask);
+      clickOnce = 0;
+
+      if (__COMMAND_QUEUE_IS_EMPTY(cQueue))
+      {
+        __CLEAR_CURCMD(curCmd);
+        __ACK_TASK_DONE(&huart3, rxMsg);
+      }
+      else
+        __READ_COMMAND(cQueue, curCmd, rxMsg);
+    }
     osDelay(1);
   }
   /* USER CODE END runTDTask */
