@@ -303,6 +303,7 @@ enum MOVE_MODE moveMode = FAST;
 // Distance memorizarion
 uint16_t distMemTick = 0;
 uint16_t lastDistTick_distMem = 0;
+uint16_t distMem_DL;
 
 // IR
 uint16_t obsTick_IR_R = 0;
@@ -366,7 +367,7 @@ void StraightLineMoveSpeedScale(const uint8_t speedMode, float *speedScale);
 void RobotMoveDist(float *targetDist, const uint8_t dir, const uint8_t speedMode);
 void RobotMoveTick(uint16_t *targetTick, const uint8_t dir, uint8_t speedMode);
 void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode);
-void RobotMoveDistObstacleMem(float *targetDist, const uint8_t speedMode);
+void RobotMoveDistObstacleMem(uint16_t *savedDistTick, float *targetDist, const uint8_t speedMode);
 
 void RobotTurn(float *targetAngle);
 void RobotTurnFastest(float *targetAngle);
@@ -1253,7 +1254,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   else if (aRxBuffer[0] == 'D' && aRxBuffer[1] == 'T')
     __ADD_COMMAND(cQueue, 14, val); // DT move until specified distance from obstacle
   else if (aRxBuffer[0] == 'T' && aRxBuffer[1] == 'D')
-    __ADD_COMMAND(cQueue, 15, val); // TD move until specified distance from obstacle and record distance travelled
+    __ADD_COMMAND(cQueue, 15, val); // TD move until specified distance from obstacle and record distance travelled,
+                                    // and travelled backward to staring point - for debugging only
   else if (aRxBuffer[0] == 'F' && aRxBuffer[1] == 'A')
     __ADD_COMMAND(cQueue, 88, val); // forward anti-clockwise rotation with variable
   else if (aRxBuffer[0] == 'F' && aRxBuffer[1] == 'C')
@@ -1535,7 +1537,7 @@ void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode)
  * @param targetDist Pointer to the target distance to be traveled.
  * @param speedMode The speed mode to be used for the movement.
  */
-void RobotMoveDistObstacleMem(float *targetDist, const uint8_t speedMode)
+void RobotMoveDistObstacleMem(uint16_t *savedDistTick, float *targetDist, const uint8_t speedMode)
 {
   angleNow = 0;
   gyroZ = 0;
@@ -1546,16 +1548,13 @@ void RobotMoveDistObstacleMem(float *targetDist, const uint8_t speedMode)
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2); // Ultrasonic sensor start
   last_curTask_tick = HAL_GetTick();
 
-  distMemTick = 0;
-  uint16_t distMem_DL = 0;
-
   do
   {
     HCSR04_Read();
     osDelay(10); // give timer interrupt chance to update obsDist_US value
 
     __GET_ENCODER_TICK_DELTA(&htim2, lastDistTick_distMem, distMem_DL);
-    distMemTick += distMem_DL;
+    savedDistTick += distMem_DL;
 
     if (abs(*targetDist - obsDist_US) < 0.1)
       break;
@@ -2634,10 +2633,11 @@ void runTDTask(void *argument)
       osDelay(1000);
     else
     {
+      // for debugging TD task only: save dist tick when travelling until stop given distance from obstacle
+      uint16_t savedDistTick_TD = 0;
       targetDist = (float)curCmd.val;
 
-      RobotMoveDistObstacleMem(&targetDist, SPEED_MODE_2);
-
+      RobotMoveDistObstacleMem(&savedDistTick_TD, &targetDist, SPEED_MODE_2);
       RobotMoveTick(&distMemTick, DIR_BACKWARD, SPEED_MODE_2);
 
       __ON_TASK_END(&htim8, prevTask, curTask);
