@@ -2499,9 +2499,11 @@ void runCmdTask(void *argument)
     case 94: // IR move until close to obstacle
       curTask = TASK_TURN_IR_CLOSE;
       __PEND_CURCMD(curCmd);
+      break;
     case 95: // TBxx, 01 turn right, 02 turn left --TASK 2
       curTask = TASK_TURN_B;
       __PEND_CURCMD(curCmd);
+      break;
     case 96: // GHxx, 01 from left (after TB01), 02 from right (after TB02),  --TASK 2
       curTask = TASK_GO_HOME;
       __PEND_CURCMD(curCmd);
@@ -2791,20 +2793,36 @@ void runTurnBTask(void *argument)
       case 01: // Turn B right:
         // FR30
         RobotTurnFR30();
+        // IR01 (left IR, follow wall 1st)
+        RobotMoveUntilIROvershoot(0);
         // FL30
         RobotTurnFL30();
-        // IR01 (right IR)
-        RobotMoveUntilIROvershoot(1);
+        //move until obstacle detected
+        RobotMoveUntilIRCloseDist(0);
+        // IR01 (left IR)
+        RobotMoveUntilIROvershoot(0);
         // FL30
+        RobotTurnFL30();
+        // IR01 (left ir, along the wall)
+        RobotMoveUntilIROvershoot(0);
+         // FL30
         RobotTurnFL30();
         break;
       case 02: // Turn B left:
         // FL30
         RobotTurnFL30();
+        // IR02 (right IR, follow wall 1st)
+        RobotMoveUntilIROvershoot(1);
         // FR30
         RobotTurnFR30();
-        // IR02 (left IR)
-        RobotMoveUntilIROvershoot(0);
+        //move until obstacle detected
+        RobotMoveUntilIRCloseDist(1);
+        // IR02 (right IR)
+        RobotMoveUntilIROvershoot(1);
+        // FR30
+        RobotTurnFR30();
+         // IR02 (right IR, along walls)
+        RobotMoveUntilIROvershoot(1);
         // FR30
         RobotTurnFR30();
         break;
