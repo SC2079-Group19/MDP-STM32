@@ -2463,7 +2463,7 @@ void runTurnATask(void *argument)
         // FA90
         targetAngle = 90;
         __SET_MOTOR_DUTY(&htim8, 1333, 2000);
-        __SET_SERVO_TURN_MAX(&htim1, 0);
+        __SET_SERVO_TURN(&htim1, 90);
         __SET_MOTOR_DIRECTION(DIR_FORWARD);
         RobotTurn(&targetAngle);
         osDelay(300);
@@ -2482,6 +2482,7 @@ void runTurnATask(void *argument)
         // save obstacle B distance for go home (GH) command
         HCSR04_Read();
         obsDist_B = obsDist_US;
+        osDelay(50);
         OLED_ShowNumber(0, 50, obsDist_B, 5, 12);
         break;
 
@@ -2489,7 +2490,7 @@ void runTurnATask(void *argument)
         // FA45
         targetAngle = 45;
         __SET_MOTOR_DUTY(&htim8, 1333, 2000);
-        __SET_SERVO_TURN_MAX(&htim1, 0);
+        __SET_SERVO_TURN(&htim1, 90);
         __SET_MOTOR_DIRECTION(DIR_FORWARD);
         RobotTurn(&targetAngle);
         osDelay(300);
@@ -2511,7 +2512,7 @@ void runTurnATask(void *argument)
         // FA45
         targetAngle = 45;
         __SET_MOTOR_DUTY(&htim8, 1333, 2000);
-        __SET_SERVO_TURN_MAX(&htim1, 0);
+        __SET_SERVO_TURN(&htim1, 90);
         __SET_MOTOR_DIRECTION(DIR_FORWARD);
         RobotTurn(&targetAngle);
         osDelay(300);
@@ -2519,6 +2520,7 @@ void runTurnATask(void *argument)
         // save obstacle B distance for go home (GH) command
         HCSR04_Read();
         obsDist_B = obsDist_US;
+        osDelay(50);
         OLED_ShowNumber(0, 50, obsDist_B, 5, 12);
         break;
       }
