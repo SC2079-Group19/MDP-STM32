@@ -2864,7 +2864,7 @@ void runGHTask(void *argument)
       osDelay(1000);
     else
     {
-      obsDist_B += 40;
+      obsDist_B += 75;
       if (obsDist_B < 1000)
       {
         switch (curCmd.val)
