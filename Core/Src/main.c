@@ -301,7 +301,7 @@ enum MOVE_MODE
 enum MOVE_MODE moveMode = FAST;
 
 // Distance memorizarion
-uint16_t distMemTick = 0;
+// uint16_t distMemTick = 0;
 uint16_t lastDistTick_distMem = 0;
 uint16_t distMem_DL;
 
@@ -327,8 +327,10 @@ float speedScale = 1;
 // battery
 float batteryVal;
 
-// fastest path variable
+// task 2 variable
 float obs_a, x, angle_left, angle_right;
+float obsDist_B = 1000; // saved distance after turn a - measured by ultrasonic sensor
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -1336,10 +1338,6 @@ void StraightLineMove(const uint8_t speedMode)
  */
 void RobotMoveDist(float *targetDist, const uint8_t dir, const uint8_t speedMode)
 {
-  // function body
-}
-void RobotMoveDist(float *targetDist, const uint8_t dir, const uint8_t speedMode)
-{
   angleNow = 0;
   gyroZ = 0; // reset angle for PID
   PIDConfigReset(&pidTSlow);
@@ -1547,14 +1545,13 @@ void RobotMoveDistObstacleMem(uint16_t *savedDistTick, float *targetDist, const 
   obsDist_US = 1000;
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2); // Ultrasonic sensor start
   last_curTask_tick = HAL_GetTick();
+  distMem_DL = 0;
+  savedDistTick = 0;
 
   do
   {
     HCSR04_Read();
     osDelay(10); // give timer interrupt chance to update obsDist_US value
-
-    __GET_ENCODER_TICK_DELTA(&htim2, lastDistTick_distMem, distMem_DL);
-    savedDistTick += distMem_DL;
 
     if (abs(*targetDist - obsDist_US) < 0.1)
       break;
@@ -1663,18 +1660,19 @@ void RobotMoveUntilIRCloseDist(int isIR_R)
     do
     {
       __ADC_Read_Dist_R(&hadc1, dataPoint_R, IR_data_raw_acc_R, obsDist_IR_R, obsTick_IR_R);
+      OLED_ShowNumber(0, 0, obsDist_IR_R, 5, 12);
       osDelay(20);
-      if (obsDist_IR_R < 25)
-        break;
+      // if (obsDist_IR_R < 25)
+      //   break;
       if (HAL_GetTick() - last_curTask_tick >= 10)
       {
-        OLED_ShowNumber(0, 0, obsDist_IR_R, 5, 12);
+        // OLED_ShowNumber(0, 0, obsDist_IR_R, 5, 12);
         __SET_MOTOR_DIRECTION(DIR_FORWARD);
         StraightLineMove(SPEED_MODE_1);
         last_curTask_tick = HAL_GetTick();
       }
 
-    } while (1);
+    } while (obsDist_IR_R >= 25);
     __SET_MOTOR_DUTY(&htim8, 0, 0);
     HAL_ADC_Stop(&hadc1);
   }
@@ -1684,18 +1682,18 @@ void RobotMoveUntilIRCloseDist(int isIR_R)
     do
     {
       __ADC_Read_Dist_L(&hadc2, dataPoint_L, IR_data_raw_acc_L, obsDist_IR_L, obsTick_IR_L);
+      OLED_ShowNumber(0, 0, obsDist_IR_L, 5, 12);
       osDelay(20);
-      if (obsDist_IR_L < 25)
-        break;
+      // if (obsDist_IR_L < 25)
+      //   break;
       if (HAL_GetTick() - last_curTask_tick >= 10)
       {
-        OLED_ShowNumber(0, 0, obsDist_IR_L, 5, 12);
         __SET_MOTOR_DIRECTION(DIR_FORWARD);
         StraightLineMove(SPEED_MODE_1);
         last_curTask_tick = HAL_GetTick();
       }
 
-    } while (1);
+    } while (obsDist_IR_L >= 25);
     __SET_MOTOR_DUTY(&htim8, 0, 0);
     HAL_ADC_Stop(&hadc2);
   }
@@ -2480,6 +2478,11 @@ void runTurnATask(void *argument)
         __SET_MOTOR_DIRECTION(DIR_FORWARD);
         RobotTurn(&targetAngle);
         osDelay(300);
+
+        // save obstacle B distance for go home (GH) command
+        HCSR04_Read();
+        obsDist_B = obsDist_US;
+        OLED_ShowNumber(0, 50, obsDist_B, 5, 12);
         break;
 
       case 02: // Turn A left:
@@ -2512,6 +2515,11 @@ void runTurnATask(void *argument)
         __SET_MOTOR_DIRECTION(DIR_FORWARD);
         RobotTurn(&targetAngle);
         osDelay(300);
+
+        // save obstacle B distance for go home (GH) command
+        HCSR04_Read();
+        obsDist_B = obsDist_US;
+        OLED_ShowNumber(0, 50, obsDist_B, 5, 12);
         break;
       }
       clickOnce = 0;
@@ -2638,7 +2646,7 @@ void runTDTask(void *argument)
       targetDist = (float)curCmd.val;
 
       RobotMoveDistObstacleMem(&savedDistTick_TD, &targetDist, SPEED_MODE_2);
-      RobotMoveTick(&distMemTick, DIR_BACKWARD, SPEED_MODE_2);
+      RobotMoveTick(&savedDistTick_TD, DIR_BACKWARD, SPEED_MODE_2);
 
       __ON_TASK_END(&htim8, prevTask, curTask);
       clickOnce = 0;
