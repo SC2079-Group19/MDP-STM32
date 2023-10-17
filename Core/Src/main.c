@@ -1689,11 +1689,12 @@ void RobotMoveUntilIRCloseDist(int isIR_R)
   PIDConfigReset(&pidTSlow);
   PIDConfigReset(&pidSlow);
   PIDConfigReset(&pidFast);
-  obsDist_IR_R = 0;
-  obsDist_IR_L = 0;
+  obsDist_IR_R = 0xFF;
+  obsDist_IR_L = 0xFF;
   angleNow = 0;
   gyroZ = 0;
   last_curTask_tick = HAL_GetTick();
+  
   if (isIR_R)
   {
     do
@@ -2797,15 +2798,16 @@ void runTurnBTask(void *argument)
         RobotMoveUntilIROvershoot(0);
         // FL30
         RobotTurnFL30();
+        //out of obstacle zone
+        //move until obstacle detected
+        RobotMoveUntilIROvershoot(0);
+         // FL30
+        RobotTurnFL30();
         //move until obstacle detected
         RobotMoveUntilIRCloseDist(0);
         // IR01 (left IR)
         RobotMoveUntilIROvershoot(0);
         // FL30
-        RobotTurnFL30();
-        // IR01 (left ir, along the wall)
-        RobotMoveUntilIROvershoot(0);
-         // FL30
         RobotTurnFL30();
         break;
       case 02: // Turn B left:
@@ -2815,13 +2817,14 @@ void runTurnBTask(void *argument)
         RobotMoveUntilIROvershoot(1);
         // FR30
         RobotTurnFR30();
+        //out of obstacle zone
+        //move until obstacle detected
+        RobotMoveUntilIROvershoot(1);
+         // FR30
+        RobotTurnFR30();
         //move until obstacle detected
         RobotMoveUntilIRCloseDist(1);
         // IR02 (right IR)
-        RobotMoveUntilIROvershoot(1);
-        // FR30
-        RobotTurnFR30();
-         // IR02 (right IR, along walls)
         RobotMoveUntilIROvershoot(1);
         // FR30
         RobotTurnFR30();
@@ -2861,13 +2864,14 @@ void runGHTask(void *argument)
       osDelay(1000);
     else
     {
+      obsDist_B += 40;
       if (obsDist_B < 1000)
       {
         switch (curCmd.val)
         {
         case 01:
           // move to obs A location +40 cm (tentative)
-          RobotMoveDist(&obsDist_B + 40, DIR_FORWARD, SPEED_MODE_2);
+          RobotMoveDist(&obsDist_B, DIR_FORWARD, SPEED_MODE_2);
           // FL30
           RobotTurnFL30();
           // stop when IR detects obs
@@ -2877,7 +2881,7 @@ void runGHTask(void *argument)
           break;
         case 02:
           // move to obs A location +40 cm (tentative)
-          RobotMoveDist(&obsDist_B + 40, DIR_FORWARD, SPEED_MODE_2);
+          RobotMoveDist(&obsDist_B, DIR_FORWARD, SPEED_MODE_2);
           // FR30
           RobotTurnFR30();
           // stop when IR detects obs
