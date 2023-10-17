@@ -156,6 +156,20 @@ const osThreadAttr_t TDTask_attributes = {
     .stack_size = 128 * 4,
     .priority = (osPriority_t)osPriorityLow,
 };
+/* Definitions for turnBTask */
+osThreadId_t turnBTaskHandle;
+const osThreadAttr_t turnBTask_attributes = {
+    .name = "turnBTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityNormal,
+};
+/* Definitions for GHTask */
+osThreadId_t GHTaskHandle;
+const osThreadAttr_t GHTask_attributes = {
+    .name = "GHTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityNormal,
+};
 /* USER CODE BEGIN PV */
 
 uint8_t RX_BUFFER_SIZE = 5;
@@ -285,9 +299,10 @@ enum TASK_TYPE
   TASK_MOVE_OBS,
   TASK_MOVE_OBS_MEM,
   TASK_TURN_A,
-  // TASK_TURN_B,
+  TASK_TURN_B,
   TASK_TURN_IR,
   TASK_TURN_IR_CLOSE,
+  TASK_GO_HOME,
   // TASK_FASTESTPATH,
   TASK_NONE
 };
@@ -359,6 +374,8 @@ void runTurnATask(void *argument);
 void runTurnIRTask(void *argument);
 void runTurnIRClose(void *argument);
 void runTDTask(void *argument);
+void runTurnBTask(void *argument);
+void runGHTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 void PIDConfigInit(PIDConfig *cfg, const float Kp, const float Ki, const float Kd);
@@ -558,6 +575,12 @@ int main(void)
 
   /* creation of TDTask */
   TDTaskHandle = osThreadNew(runTDTask, NULL, &TDTask_attributes);
+
+  /* creation of turnBTask */
+  turnBTaskHandle = osThreadNew(runTurnBTask, NULL, &turnBTask_attributes);
+
+  /* creation of GHTask */
+  GHTaskHandle = osThreadNew(runGHTask, NULL, &GHTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -1284,6 +1307,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     __ADD_COMMAND(cQueue, 93, val);
   else if (aRxBuffer[0] == 'I' && aRxBuffer[1] == 'C')
     __ADD_COMMAND(cQueue, 94, val);
+  else if (aRxBuffer[0] == 'T' && aRxBuffer[1] == 'B')
+    __ADD_COMMAND(cQueue, 95, val);
+  else if (aRxBuffer[0] == 'G' && aRxBuffer[1] == 'H')
+    __ADD_COMMAND(cQueue, 96, val);
   if (!__COMMAND_QUEUE_IS_EMPTY(cQueue))
   {
     __READ_COMMAND(cQueue, curCmd, rxMsg);
@@ -2461,7 +2488,7 @@ void runCmdTask(void *argument)
       __CLEAR_CURCMD(curCmd);
       __ACK_TASK_DONE(&huart3, rxMsg);
       break;
-    case 92: // TAxx, 01 turn left, 02 turn right --TASK 2
+    case 92: // TAxx, 01 turn right, 02 turn left --TASK 2
       curTask = TASK_TURN_A;
       __PEND_CURCMD(curCmd);
       break;
@@ -2471,6 +2498,12 @@ void runCmdTask(void *argument)
       break;
     case 94: // IR move until close to obstacle
       curTask = TASK_TURN_IR_CLOSE;
+      __PEND_CURCMD(curCmd);
+    case 95: // TBxx, 01 turn right, 02 turn left --TASK 2
+      curTask = TASK_TURN_B;
+      __PEND_CURCMD(curCmd);
+    case 96: // GHxx, 01 from left (after TB01), 02 from right (after TB02),  --TASK 2
+      curTask = TASK_GO_HOME;
       __PEND_CURCMD(curCmd);
       break;
     case 99:
@@ -2545,35 +2578,19 @@ void runTurnATask(void *argument)
       {
       case 01: // Turn A right:
         //  FC45
-        targetAngle = -45;
-        __SET_MOTOR_DUTY(&htim8, 2000, 1333);
-        __SET_SERVO_TURN_MAX(&htim1, 1);
-        __SET_MOTOR_DIRECTION(DIR_FORWARD);
-        RobotTurn(&targetAngle);
-        osDelay(300); // reset wheel
+        RobotTurnFC45();
         // FW5
         targetDist = 5;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         osDelay(10);
         // FA90
-        targetAngle = 90;
-        __SET_MOTOR_DUTY(&htim8, 1333, 2000);
-        __SET_SERVO_TURN(&htim1, 90);
-        __SET_MOTOR_DIRECTION(DIR_FORWARD);
-        RobotTurn(&targetAngle);
-        osDelay(300);
+        RobotTurnFA90();
         // FW05
         targetDist = 05;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         osDelay(10);
         // FC45
-        targetAngle = -45;
-        __SET_MOTOR_DUTY(&htim8, 2000, 1333);
-        __SET_SERVO_TURN_MAX(&htim1, 1);
-        __SET_MOTOR_DIRECTION(DIR_FORWARD);
-        RobotTurn(&targetAngle);
-        osDelay(300);
-
+        RobotTurnFC45();
         // save obstacle B distance for go home (GH) command
         obsDist_US = 1000;
         HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2);
@@ -2586,34 +2603,19 @@ void runTurnATask(void *argument)
 
       case 02: // Turn A left:
         // FA45
-        targetAngle = 45;
-        __SET_MOTOR_DUTY(&htim8, 1333, 2000);
-        __SET_SERVO_TURN(&htim1, 90);
-        __SET_MOTOR_DIRECTION(DIR_FORWARD);
-        RobotTurn(&targetAngle);
-        osDelay(300);
+        RobotTurnFA45();
         // FW5
         targetDist = 5;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         osDelay(10);
         // FC90
-        targetAngle = -90;
-        __SET_MOTOR_DUTY(&htim8, 2000, 1333);
-        __SET_SERVO_TURN_MAX(&htim1, 1);
-        __SET_MOTOR_DIRECTION(DIR_FORWARD);
-        RobotTurn(&targetAngle);
-        osDelay(300);
+        RobotTurnFC90();
         // FW05
         targetDist = 5;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         osDelay(10);
         // FA45
-        targetAngle = 45;
-        __SET_MOTOR_DUTY(&htim8, 1333, 2000);
-        __SET_SERVO_TURN(&htim1, 90);
-        __SET_MOTOR_DIRECTION(DIR_FORWARD);
-        RobotTurn(&targetAngle);
-        osDelay(300);
+        RobotTurnFA45();
 
         // save obstacle B distance for go home (GH) command
         obsDist_US = 1000;
@@ -2765,6 +2767,122 @@ void runTDTask(void *argument)
     osDelay(1);
   }
   /* USER CODE END runTDTask */
+}
+
+/* USER CODE BEGIN Header_runTurnBTask */
+/**
+ * @brief Function implementing the turnBTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_runTurnBTask */
+void runTurnBTask(void *argument)
+{
+  /* USER CODE BEGIN runTurnBTask */
+  /* Infinite loop */
+  for (;;)
+  {
+    if (curTask != TASK_TURN_B)
+      osDelay(1000);
+    else
+    {
+      switch (curCmd.val)
+      {
+      case 01: // Turn B right:
+        // FR30
+        RobotTurnFR30();
+        // FL30
+        RobotTurnFL30();
+        // IR01 (right IR)
+        RobotMoveUntilIROvershoot(1);
+        // FL30
+        RobotTurnFL30();
+        break;
+      case 02: // Turn B left:
+        // FL30
+        RobotTurnFL30();
+        // FR30
+        RobotTurnFR30();
+        // IR02 (left IR)
+        RobotMoveUntilIROvershoot(0);
+        // FR30
+        RobotTurnFR30();
+        break;
+      }
+      clickOnce = 0;
+      prevTask = curTask;
+      curTask = TASK_NONE;
+      if (__COMMAND_QUEUE_IS_EMPTY(cQueue))
+      {
+        __CLEAR_CURCMD(curCmd);
+        __ACK_TASK_DONE(&huart3, rxMsg);
+      }
+      else
+        __READ_COMMAND(cQueue, curCmd, rxMsg);
+    }
+    osDelay(1);
+  }
+  /* USER CODE END runTurnBTask */
+}
+
+/* USER CODE BEGIN Header_runGHTask */
+/**
+ * @brief Function implementing the GHTask thread.
+ * Need to run Turn A before GH to memorize obstacle B distance
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_runGHTask */
+void runGHTask(void *argument)
+{
+  /* USER CODE BEGIN runGHTask */
+  /* Infinite loop */
+  for (;;)
+  {
+    if (curTask != TASK_GO_HOME)
+      osDelay(1000);
+    else
+    {
+      if (obsDist_B < 1000)
+      {
+        switch (curCmd.val)
+        {
+        case 01:
+          // move to obs A location +40 cm (tentative)
+          RobotMoveDist(&obsDist_B + 40, DIR_FORWARD, SPEED_MODE_2);
+          // FL30
+          RobotTurnFL30();
+          // stop when IR detects obs
+          RobotMoveUntilIRCloseDist(0);
+          // FR30
+          RobotTurnFR30();
+          break;
+        case 02:
+          // move to obs A location +40 cm (tentative)
+          RobotMoveDist(&obsDist_B + 40, DIR_FORWARD, SPEED_MODE_2);
+          // FR30
+          RobotTurnFR30();
+          // stop when IR detects obs
+          RobotMoveUntilIRCloseDist(1);
+          // FL30
+          RobotTurnFL30();
+          break;
+        }
+      }
+      clickOnce = 0;
+      prevTask = curTask;
+      curTask = TASK_NONE;
+      if (__COMMAND_QUEUE_IS_EMPTY(cQueue))
+      {
+        __CLEAR_CURCMD(curCmd);
+        __ACK_TASK_DONE(&huart3, rxMsg);
+      }
+      else
+        __READ_COMMAND(cQueue, curCmd, rxMsg);
+    }
+    osDelay(1);
+  }
+  /* USER CODE END runGHTask */
 }
 
 /**
