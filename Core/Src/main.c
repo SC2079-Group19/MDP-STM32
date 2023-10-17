@@ -156,6 +156,20 @@ const osThreadAttr_t TDTask_attributes = {
     .stack_size = 128 * 4,
     .priority = (osPriority_t)osPriorityLow,
 };
+/* Definitions for turnBTask */
+osThreadId_t turnBTaskHandle;
+const osThreadAttr_t turnBTask_attributes = {
+    .name = "turnBTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityNormal,
+};
+/* Definitions for GHTask */
+osThreadId_t GHTaskHandle;
+const osThreadAttr_t GHTask_attributes = {
+    .name = "GHTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityNormal,
+};
 /* USER CODE BEGIN PV */
 
 uint8_t RX_BUFFER_SIZE = 5;
@@ -285,9 +299,10 @@ enum TASK_TYPE
   TASK_MOVE_OBS,
   TASK_MOVE_OBS_MEM,
   TASK_TURN_A,
-  // TASK_TURN_B,
+  TASK_TURN_B,
   TASK_TURN_IR,
   TASK_TURN_IR_CLOSE,
+  TASK_GO_HOME,
   // TASK_FASTESTPATH,
   TASK_NONE
 };
@@ -301,7 +316,7 @@ enum MOVE_MODE
 enum MOVE_MODE moveMode = FAST;
 
 // Distance memorizarion
-uint16_t distMemTick = 0;
+// uint16_t distMemTick = 0;
 uint16_t lastDistTick_distMem = 0;
 uint16_t distMem_DL;
 
@@ -327,8 +342,10 @@ float speedScale = 1;
 // battery
 float batteryVal;
 
-// fastest path variable
+// task 2 variable
 float obs_a, x, angle_left, angle_right;
+float obsDist_B = 1000; // saved distance after turn a - measured by ultrasonic sensor
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -357,6 +374,8 @@ void runTurnATask(void *argument);
 void runTurnIRTask(void *argument);
 void runTurnIRClose(void *argument);
 void runTDTask(void *argument);
+void runTurnBTask(void *argument);
+void runGHTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 void PIDConfigInit(PIDConfig *cfg, const float Kp, const float Ki, const float Kd);
@@ -373,6 +392,18 @@ void RobotTurn(float *targetAngle);
 void RobotTurnFastest(float *targetAngle);
 void RobotMoveUntilIROvershoot(int isIR_R);
 void RobotMoveUntilIRCloseDist(int isIR_R);
+
+// For Task 2
+// Turn A
+void RobotTurnFA45();
+void RobotTurnFC45();
+void RobotTurnFA90();
+void RobotTurnFC90();
+void RobotTurnFA180();
+void RobotTurnFC180();
+// Turn B
+void RobotTurnFR30();
+void RobotTurnFL30();
 
 void HCSR04_Read(void);
 
@@ -544,6 +575,12 @@ int main(void)
 
   /* creation of TDTask */
   TDTaskHandle = osThreadNew(runTDTask, NULL, &TDTask_attributes);
+
+  /* creation of turnBTask */
+  turnBTaskHandle = osThreadNew(runTurnBTask, NULL, &turnBTask_attributes);
+
+  /* creation of GHTask */
+  GHTaskHandle = osThreadNew(runGHTask, NULL, &GHTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -1270,6 +1307,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     __ADD_COMMAND(cQueue, 93, val);
   else if (aRxBuffer[0] == 'I' && aRxBuffer[1] == 'C')
     __ADD_COMMAND(cQueue, 94, val);
+  else if (aRxBuffer[0] == 'T' && aRxBuffer[1] == 'B')
+    __ADD_COMMAND(cQueue, 95, val);
+  else if (aRxBuffer[0] == 'G' && aRxBuffer[1] == 'H')
+    __ADD_COMMAND(cQueue, 96, val);
   if (!__COMMAND_QUEUE_IS_EMPTY(cQueue))
   {
     __READ_COMMAND(cQueue, curCmd, rxMsg);
@@ -1334,10 +1375,6 @@ void StraightLineMove(const uint8_t speedMode)
  * @param dir The direction to move the robot in.
  * @param speedMode The speed mode to use for the movement.
  */
-void RobotMoveDist(float *targetDist, const uint8_t dir, const uint8_t speedMode)
-{
-  // function body
-}
 void RobotMoveDist(float *targetDist, const uint8_t dir, const uint8_t speedMode)
 {
   angleNow = 0;
@@ -1547,14 +1584,13 @@ void RobotMoveDistObstacleMem(uint16_t *savedDistTick, float *targetDist, const 
   obsDist_US = 1000;
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2); // Ultrasonic sensor start
   last_curTask_tick = HAL_GetTick();
+  distMem_DL = 0;
+  savedDistTick = 0;
 
   do
   {
     HCSR04_Read();
     osDelay(10); // give timer interrupt chance to update obsDist_US value
-
-    __GET_ENCODER_TICK_DELTA(&htim2, lastDistTick_distMem, distMem_DL);
-    savedDistTick += distMem_DL;
 
     if (abs(*targetDist - obsDist_US) < 0.1)
       break;
@@ -1663,18 +1699,19 @@ void RobotMoveUntilIRCloseDist(int isIR_R)
     do
     {
       __ADC_Read_Dist_R(&hadc1, dataPoint_R, IR_data_raw_acc_R, obsDist_IR_R, obsTick_IR_R);
+      OLED_ShowNumber(0, 0, obsDist_IR_R, 5, 12);
       osDelay(20);
-      if (obsDist_IR_R < 25)
-        break;
+      // if (obsDist_IR_R < 25)
+      //   break;
       if (HAL_GetTick() - last_curTask_tick >= 10)
       {
-        OLED_ShowNumber(0, 0, obsDist_IR_R, 5, 12);
+        // OLED_ShowNumber(0, 0, obsDist_IR_R, 5, 12);
         __SET_MOTOR_DIRECTION(DIR_FORWARD);
         StraightLineMove(SPEED_MODE_1);
         last_curTask_tick = HAL_GetTick();
       }
 
-    } while (1);
+    } while (obsDist_IR_R >= 25);
     __SET_MOTOR_DUTY(&htim8, 0, 0);
     HAL_ADC_Stop(&hadc1);
   }
@@ -1684,21 +1721,104 @@ void RobotMoveUntilIRCloseDist(int isIR_R)
     do
     {
       __ADC_Read_Dist_L(&hadc2, dataPoint_L, IR_data_raw_acc_L, obsDist_IR_L, obsTick_IR_L);
+      OLED_ShowNumber(0, 0, obsDist_IR_L, 5, 12);
       osDelay(20);
-      if (obsDist_IR_L < 25)
-        break;
+      // if (obsDist_IR_L < 25)
+      //   break;
       if (HAL_GetTick() - last_curTask_tick >= 10)
       {
-        OLED_ShowNumber(0, 0, obsDist_IR_L, 5, 12);
         __SET_MOTOR_DIRECTION(DIR_FORWARD);
         StraightLineMove(SPEED_MODE_1);
         last_curTask_tick = HAL_GetTick();
       }
 
-    } while (1);
+    } while (obsDist_IR_L >= 25);
     __SET_MOTOR_DUTY(&htim8, 0, 0);
     HAL_ADC_Stop(&hadc2);
   }
+}
+
+// For Task 2 Turn A
+void RobotTurnFC45()
+{
+  //  FC45
+  targetAngle = -45;
+  __SET_MOTOR_DUTY(&htim8, 2000, 1333);
+  __SET_SERVO_TURN_MAX(&htim1, 1);
+  __SET_MOTOR_DIRECTION(DIR_FORWARD);
+  RobotTurn(&targetAngle);
+  osDelay(300); // reset wheel
+}
+void RobotTurnFC90()
+{
+  //  FC90
+  targetAngle = -90;
+  __SET_MOTOR_DUTY(&htim8, 2000, 1333);
+  __SET_SERVO_TURN_MAX(&htim1, 1);
+  __SET_MOTOR_DIRECTION(DIR_FORWARD);
+  RobotTurn(&targetAngle);
+  osDelay(300); // reset wheel
+}
+void RobotTurnFC180()
+{
+  //  FC180
+  targetAngle = -180;
+  __SET_MOTOR_DUTY(&htim8, 2000, 1333);
+  __SET_SERVO_TURN_MAX(&htim1, 1);
+  __SET_MOTOR_DIRECTION(DIR_FORWARD);
+  RobotTurn(&targetAngle);
+  osDelay(300); // reset wheel
+}
+
+void RobotTurnFA45()
+{
+  // FA45
+  targetAngle = 45;
+  __SET_MOTOR_DUTY(&htim8, 1333, 2000);
+  __SET_SERVO_TURN(&htim1, 90);
+  __SET_MOTOR_DIRECTION(DIR_FORWARD);
+  RobotTurn(&targetAngle);
+  osDelay(300);
+}
+void RobotTurnFA90()
+{
+  // FA90
+  targetAngle = 90;
+  __SET_MOTOR_DUTY(&htim8, 1333, 2000);
+  __SET_SERVO_TURN(&htim1, 90);
+  __SET_MOTOR_DIRECTION(DIR_FORWARD);
+  RobotTurn(&targetAngle);
+  osDelay(300);
+}
+void RobotTurnFA180()
+{
+  // FA180
+  targetAngle = 180;
+  __SET_MOTOR_DUTY(&htim8, 1333, 2000);
+  __SET_SERVO_TURN(&htim1, 90);
+  __SET_MOTOR_DIRECTION(DIR_FORWARD);
+  RobotTurn(&targetAngle);
+  osDelay(300);
+}
+
+// For Task 2 Turn B
+void RobotTurnFR30()
+{
+  targetDist = 4;
+  RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+  __SET_CMD_CONFIG(cfgs[CONFIG_FR30], &htim8, &htim1, targetAngle);
+  RobotTurn(&targetAngle);
+  targetDist = 2;
+  RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
+}
+void RobotTurnFL30()
+{
+  targetDist = 5;
+  RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+  __SET_CMD_CONFIG(cfgs[CONFIG_FL30], &htim8, &htim1, targetAngle);
+  RobotTurn(&targetAngle);
+  targetDist = 3;
+  RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
 }
 
 /* USER CODE END 4 */
@@ -2368,7 +2488,7 @@ void runCmdTask(void *argument)
       __CLEAR_CURCMD(curCmd);
       __ACK_TASK_DONE(&huart3, rxMsg);
       break;
-    case 92: // TAxx, 01 turn left, 02 turn right --TASK 2
+    case 92: // TAxx, 01 turn right, 02 turn left --TASK 2
       curTask = TASK_TURN_A;
       __PEND_CURCMD(curCmd);
       break;
@@ -2378,6 +2498,12 @@ void runCmdTask(void *argument)
       break;
     case 94: // IR move until close to obstacle
       curTask = TASK_TURN_IR_CLOSE;
+      __PEND_CURCMD(curCmd);
+    case 95: // TBxx, 01 turn right, 02 turn left --TASK 2
+      curTask = TASK_TURN_B;
+      __PEND_CURCMD(curCmd);
+    case 96: // GHxx, 01 from left (after TB01), 02 from right (after TB02),  --TASK 2
+      curTask = TASK_GO_HOME;
       __PEND_CURCMD(curCmd);
       break;
     case 99:
@@ -2452,66 +2578,53 @@ void runTurnATask(void *argument)
       {
       case 01: // Turn A right:
         //  FC45
-        targetAngle = -45;
-        __SET_MOTOR_DUTY(&htim8, 2000, 1333);
-        __SET_SERVO_TURN_MAX(&htim1, 1);
-        __SET_MOTOR_DIRECTION(DIR_FORWARD);
-        RobotTurn(&targetAngle);
-        osDelay(300); // reset wheel
+        RobotTurnFC45();
         // FW5
         targetDist = 5;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         osDelay(10);
         // FA90
-        targetAngle = 90;
-        __SET_MOTOR_DUTY(&htim8, 1333, 2000);
-        __SET_SERVO_TURN_MAX(&htim1, 0);
-        __SET_MOTOR_DIRECTION(DIR_FORWARD);
-        RobotTurn(&targetAngle);
-        osDelay(300);
+        RobotTurnFA90();
         // FW05
         targetDist = 05;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         osDelay(10);
         // FC45
-        targetAngle = -45;
-        __SET_MOTOR_DUTY(&htim8, 2000, 1333);
-        __SET_SERVO_TURN_MAX(&htim1, 1);
-        __SET_MOTOR_DIRECTION(DIR_FORWARD);
-        RobotTurn(&targetAngle);
-        osDelay(300);
+        RobotTurnFC45();
+        // save obstacle B distance for go home (GH) command
+        obsDist_US = 1000;
+        HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2);
+        HCSR04_Read();
+        osDelay(100);
+        obsDist_B = obsDist_US;
+        OLED_ShowNumber(0, 50, obsDist_US, 5, 12);
+        HAL_TIM_IC_Stop_IT(&htim3, TIM_CHANNEL_2);
         break;
 
       case 02: // Turn A left:
         // FA45
-        targetAngle = 45;
-        __SET_MOTOR_DUTY(&htim8, 1333, 2000);
-        __SET_SERVO_TURN_MAX(&htim1, 0);
-        __SET_MOTOR_DIRECTION(DIR_FORWARD);
-        RobotTurn(&targetAngle);
-        osDelay(300);
+        RobotTurnFA45();
         // FW5
         targetDist = 5;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         osDelay(10);
         // FC90
-        targetAngle = -90;
-        __SET_MOTOR_DUTY(&htim8, 2000, 1333);
-        __SET_SERVO_TURN_MAX(&htim1, 1);
-        __SET_MOTOR_DIRECTION(DIR_FORWARD);
-        RobotTurn(&targetAngle);
-        osDelay(300);
+        RobotTurnFC90();
         // FW05
         targetDist = 5;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         osDelay(10);
         // FA45
-        targetAngle = 45;
-        __SET_MOTOR_DUTY(&htim8, 1333, 2000);
-        __SET_SERVO_TURN_MAX(&htim1, 0);
-        __SET_MOTOR_DIRECTION(DIR_FORWARD);
-        RobotTurn(&targetAngle);
-        osDelay(300);
+        RobotTurnFA45();
+
+        // save obstacle B distance for go home (GH) command
+        obsDist_US = 1000;
+        HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2);
+        HCSR04_Read();
+        osDelay(100);
+        obsDist_B = obsDist_US;
+        OLED_ShowNumber(0, 50, obsDist_US, 5, 12);
+        HAL_TIM_IC_Stop_IT(&htim3, TIM_CHANNEL_2);
         break;
       }
       clickOnce = 0;
@@ -2638,7 +2751,7 @@ void runTDTask(void *argument)
       targetDist = (float)curCmd.val;
 
       RobotMoveDistObstacleMem(&savedDistTick_TD, &targetDist, SPEED_MODE_2);
-      RobotMoveTick(&distMemTick, DIR_BACKWARD, SPEED_MODE_2);
+      RobotMoveTick(&savedDistTick_TD, DIR_BACKWARD, SPEED_MODE_2);
 
       __ON_TASK_END(&htim8, prevTask, curTask);
       clickOnce = 0;
@@ -2654,6 +2767,122 @@ void runTDTask(void *argument)
     osDelay(1);
   }
   /* USER CODE END runTDTask */
+}
+
+/* USER CODE BEGIN Header_runTurnBTask */
+/**
+ * @brief Function implementing the turnBTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_runTurnBTask */
+void runTurnBTask(void *argument)
+{
+  /* USER CODE BEGIN runTurnBTask */
+  /* Infinite loop */
+  for (;;)
+  {
+    if (curTask != TASK_TURN_B)
+      osDelay(1000);
+    else
+    {
+      switch (curCmd.val)
+      {
+      case 01: // Turn B right:
+        // FR30
+        RobotTurnFR30();
+        // FL30
+        RobotTurnFL30();
+        // IR01 (right IR)
+        RobotMoveUntilIROvershoot(1);
+        // FL30
+        RobotTurnFL30();
+        break;
+      case 02: // Turn B left:
+        // FL30
+        RobotTurnFL30();
+        // FR30
+        RobotTurnFR30();
+        // IR02 (left IR)
+        RobotMoveUntilIROvershoot(0);
+        // FR30
+        RobotTurnFR30();
+        break;
+      }
+      clickOnce = 0;
+      prevTask = curTask;
+      curTask = TASK_NONE;
+      if (__COMMAND_QUEUE_IS_EMPTY(cQueue))
+      {
+        __CLEAR_CURCMD(curCmd);
+        __ACK_TASK_DONE(&huart3, rxMsg);
+      }
+      else
+        __READ_COMMAND(cQueue, curCmd, rxMsg);
+    }
+    osDelay(1);
+  }
+  /* USER CODE END runTurnBTask */
+}
+
+/* USER CODE BEGIN Header_runGHTask */
+/**
+ * @brief Function implementing the GHTask thread.
+ * Need to run Turn A before GH to memorize obstacle B distance
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_runGHTask */
+void runGHTask(void *argument)
+{
+  /* USER CODE BEGIN runGHTask */
+  /* Infinite loop */
+  for (;;)
+  {
+    if (curTask != TASK_GO_HOME)
+      osDelay(1000);
+    else
+    {
+      if (obsDist_B < 1000)
+      {
+        switch (curCmd.val)
+        {
+        case 01:
+          // move to obs A location +40 cm (tentative)
+          RobotMoveDist(&obsDist_B + 40, DIR_FORWARD, SPEED_MODE_2);
+          // FL30
+          RobotTurnFL30();
+          // stop when IR detects obs
+          RobotMoveUntilIRCloseDist(0);
+          // FR30
+          RobotTurnFR30();
+          break;
+        case 02:
+          // move to obs A location +40 cm (tentative)
+          RobotMoveDist(&obsDist_B + 40, DIR_FORWARD, SPEED_MODE_2);
+          // FR30
+          RobotTurnFR30();
+          // stop when IR detects obs
+          RobotMoveUntilIRCloseDist(1);
+          // FL30
+          RobotTurnFL30();
+          break;
+        }
+      }
+      clickOnce = 0;
+      prevTask = curTask;
+      curTask = TASK_NONE;
+      if (__COMMAND_QUEUE_IS_EMPTY(cQueue))
+      {
+        __CLEAR_CURCMD(curCmd);
+        __ACK_TASK_DONE(&huart3, rxMsg);
+      }
+      else
+        __READ_COMMAND(cQueue, curCmd, rxMsg);
+    }
+    osDelay(1);
+  }
+  /* USER CODE END runGHTask */
 }
 
 /**
