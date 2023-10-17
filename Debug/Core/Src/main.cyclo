@@ -36,8 +36,8 @@
 ../Core/Src/main.c:2263:6:runCmdTask	23
 ../Core/Src/main.c:2401:6:runMoveDistObsTask	3
 ../Core/Src/main.c:2438:6:runTurnATask	5
-../Core/Src/main.c:2548:6:runTurnIRTask	5
-../Core/Src/main.c:2591:6:runTurnIRClose	5
-../Core/Src/main.c:2634:6:runTDTask	3
-../Core/Src/main.c:2675:6:HAL_TIM_PeriodElapsedCallback	2
-../Core/Src/main.c:2693:6:Error_Handler	1
+../Core/Src/main.c:2556:6:runTurnIRTask	5
+../Core/Src/main.c:2599:6:runTurnIRClose	5
+../Core/Src/main.c:2642:6:runTDTask	3
+../Core/Src/main.c:2683:6:HAL_TIM_PeriodElapsedCallback	2
+../Core/Src/main.c:2701:6:Error_Handler	1

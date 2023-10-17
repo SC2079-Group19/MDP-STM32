@@ -376,6 +376,18 @@ void RobotTurnFastest(float *targetAngle);
 void RobotMoveUntilIROvershoot(int isIR_R);
 void RobotMoveUntilIRCloseDist(int isIR_R);
 
+// For Task 2
+// Turn A
+void RobotTurnFA45();
+void RobotTurnFC45();
+void RobotTurnFA90();
+void RobotTurnFC90();
+void RobotTurnFA180();
+void RobotTurnFC180();
+// Turn B
+void RobotTurnFR30();
+void RobotTurnFL30();
+
 void HCSR04_Read(void);
 
 /* USER CODE END PFP */
@@ -1699,6 +1711,89 @@ void RobotMoveUntilIRCloseDist(int isIR_R)
   }
 }
 
+// For Task 2 Turn A
+void RobotTurnFC45()
+{
+  //  FC45
+  targetAngle = -45;
+  __SET_MOTOR_DUTY(&htim8, 2000, 1333);
+  __SET_SERVO_TURN_MAX(&htim1, 1);
+  __SET_MOTOR_DIRECTION(DIR_FORWARD);
+  RobotTurn(&targetAngle);
+  osDelay(300); // reset wheel
+}
+void RobotTurnFC90()
+{
+  //  FC90
+  targetAngle = -90;
+  __SET_MOTOR_DUTY(&htim8, 2000, 1333);
+  __SET_SERVO_TURN_MAX(&htim1, 1);
+  __SET_MOTOR_DIRECTION(DIR_FORWARD);
+  RobotTurn(&targetAngle);
+  osDelay(300); // reset wheel
+}
+void RobotTurnFC180()
+{
+  //  FC180
+  targetAngle = -180;
+  __SET_MOTOR_DUTY(&htim8, 2000, 1333);
+  __SET_SERVO_TURN_MAX(&htim1, 1);
+  __SET_MOTOR_DIRECTION(DIR_FORWARD);
+  RobotTurn(&targetAngle);
+  osDelay(300); // reset wheel
+}
+
+void RobotTurnFA45()
+{
+  // FA45
+  targetAngle = 45;
+  __SET_MOTOR_DUTY(&htim8, 1333, 2000);
+  __SET_SERVO_TURN(&htim1, 90);
+  __SET_MOTOR_DIRECTION(DIR_FORWARD);
+  RobotTurn(&targetAngle);
+  osDelay(300);
+}
+void RobotTurnFA90()
+{
+  // FA90
+  targetAngle = 90;
+  __SET_MOTOR_DUTY(&htim8, 1333, 2000);
+  __SET_SERVO_TURN(&htim1, 90);
+  __SET_MOTOR_DIRECTION(DIR_FORWARD);
+  RobotTurn(&targetAngle);
+  osDelay(300);
+}
+void RobotTurnFA180()
+{
+  // FA180
+  targetAngle = 180;
+  __SET_MOTOR_DUTY(&htim8, 1333, 2000);
+  __SET_SERVO_TURN(&htim1, 90);
+  __SET_MOTOR_DIRECTION(DIR_FORWARD);
+  RobotTurn(&targetAngle);
+  osDelay(300);
+}
+
+// For Task 2 Turn B
+void RobotTurnFR30()
+{
+  targetDist = 4;
+  RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+  __SET_CMD_CONFIG(cfgs[CONFIG_FR30], &htim8, &htim1, targetAngle);
+  RobotTurn(&targetAngle);
+  targetDist = 2;
+  RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
+}
+void RobotTurnFL30()
+{
+  targetDist = 5;
+  RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
+  __SET_CMD_CONFIG(cfgs[CONFIG_FL30], &htim8, &htim1, targetAngle);
+  RobotTurn(&targetAngle);
+  targetDist = 3;
+  RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
+}
+
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_runEncoder */
@@ -2480,10 +2575,13 @@ void runTurnATask(void *argument)
         osDelay(300);
 
         // save obstacle B distance for go home (GH) command
+        obsDist_US = 1000;
+        HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2);
         HCSR04_Read();
+        osDelay(100);
         obsDist_B = obsDist_US;
-        osDelay(50);
-        OLED_ShowNumber(0, 50, obsDist_B, 5, 12);
+        OLED_ShowNumber(0, 50, obsDist_US, 5, 12);
+        HAL_TIM_IC_Stop_IT(&htim3, TIM_CHANNEL_2);
         break;
 
       case 02: // Turn A left:
@@ -2518,10 +2616,13 @@ void runTurnATask(void *argument)
         osDelay(300);
 
         // save obstacle B distance for go home (GH) command
+        obsDist_US = 1000;
+        HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2);
         HCSR04_Read();
+        osDelay(100);
         obsDist_B = obsDist_US;
-        osDelay(50);
-        OLED_ShowNumber(0, 50, obsDist_B, 5, 12);
+        OLED_ShowNumber(0, 50, obsDist_US, 5, 12);
+        HAL_TIM_IC_Stop_IT(&htim3, TIM_CHANNEL_2);
         break;
       }
       clickOnce = 0;

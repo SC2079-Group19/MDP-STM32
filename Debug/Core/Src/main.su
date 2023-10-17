@@ -36,8 +36,8 @@
 ../Core/Src/main.c:2263:6:runCmdTask	16	static
 ../Core/Src/main.c:2401:6:runMoveDistObsTask	16	static
 ../Core/Src/main.c:2438:6:runTurnATask	24	static
-../Core/Src/main.c:2548:6:runTurnIRTask	16	static
-../Core/Src/main.c:2591:6:runTurnIRClose	16	static
-../Core/Src/main.c:2634:6:runTDTask	24	static
-../Core/Src/main.c:2675:6:HAL_TIM_PeriodElapsedCallback	16	static
-../Core/Src/main.c:2693:6:Error_Handler	4	static,ignoring_inline_asm
+../Core/Src/main.c:2556:6:runTurnIRTask	16	static
+../Core/Src/main.c:2599:6:runTurnIRClose	16	static
+../Core/Src/main.c:2642:6:runTDTask	24	static
+../Core/Src/main.c:2683:6:HAL_TIM_PeriodElapsedCallback	16	static
+../Core/Src/main.c:2701:6:Error_Handler	4	static,ignoring_inline_asm
