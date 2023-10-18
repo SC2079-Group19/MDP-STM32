@@ -41,13 +41,13 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  18 .debug_macro  000056e8  00000000  00000000  000551e6  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .debug_line   0001f64f  00000000  00000000  0005a8ce  2**0
+ 19 .debug_line   0001f656  00000000  00000000  0005a8ce  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 20 .debug_str    000e9774  00000000  00000000  00079f1d  2**0
+ 20 .debug_str    000e9774  00000000  00000000  00079f24  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 21 .debug_frame  00007a54  00000000  00000000  00163694  2**2
+ 21 .debug_frame  00007a54  00000000  00000000  00163698  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 22 .debug_line_str 00000066  00000000  00000000  0016b0e8  2**0
+ 22 .debug_line_str 00000066  00000000  00000000  0016b0ec  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -5998,7 +5998,7 @@ void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode)
  8003278:	681b      	ldr	r3, [r3, #0]
  800327a:	4a5c      	ldr	r2, [pc, #368]	; (80033ec <RobotMoveDistObstacle+0x334>)
  800327c:	6013      	str	r3, [r2, #0]
-        if (abs(*targetDist - obsDist_US) <= 5)
+        if (abs(*targetDist - obsDist_US) <= 5) // slow down when the distance between obstacle and robot is less than 5cm
  800327e:	687b      	ldr	r3, [r7, #4]
  8003280:	ed93 7a00 	vldr	s14, [r3]
  8003284:	4b53      	ldr	r3, [pc, #332]	; (80033d4 <RobotMoveDistObstacle+0x31c>)
@@ -6080,7 +6080,7 @@ void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode)
  800334a:	681b      	ldr	r3, [r3, #0]
  800334c:	4a27      	ldr	r2, [pc, #156]	; (80033ec <RobotMoveDistObstacle+0x334>)
  800334e:	6013      	str	r3, [r2, #0]
-        if (abs(*targetDist - obsDist_US) <= 5)
+        if (abs(*targetDist - obsDist_US) <= 5) // slow down when the distance between obstacle and robot is less than 5cm
  8003350:	687b      	ldr	r3, [r7, #4]
  8003352:	ed93 7a00 	vldr	s14, [r3]
  8003356:	4b1f      	ldr	r3, [pc, #124]	; (80033d4 <RobotMoveDistObstacle+0x31c>)
