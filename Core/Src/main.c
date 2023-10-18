@@ -45,7 +45,7 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-ADC_HandleTypeDef hadc1;
+ ADC_HandleTypeDef hadc1;
 ADC_HandleTypeDef hadc2;
 
 I2C_HandleTypeDef hi2c1;
@@ -61,107 +61,100 @@ UART_HandleTypeDef huart3;
 /* Definitions for encoderTask */
 osThreadId_t encoderTaskHandle;
 const osThreadAttr_t encoderTask_attributes = {
-    .name = "encoderTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityLow,
+  .name = "encoderTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for OledTask */
 osThreadId_t OledTaskHandle;
 const osThreadAttr_t OledTask_attributes = {
-    .name = "OledTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityLow,
+  .name = "OledTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for FWTask */
 osThreadId_t FWTaskHandle;
 const osThreadAttr_t FWTask_attributes = {
-    .name = "FWTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityNormal,
+  .name = "FWTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for BWTask */
 osThreadId_t BWTaskHandle;
 const osThreadAttr_t BWTask_attributes = {
-    .name = "BWTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityNormal,
+  .name = "BWTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for FLTask */
 osThreadId_t FLTaskHandle;
 const osThreadAttr_t FLTask_attributes = {
-    .name = "FLTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityNormal,
+  .name = "FLTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for FRTask */
 osThreadId_t FRTaskHandle;
 const osThreadAttr_t FRTask_attributes = {
-    .name = "FRTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityNormal,
+  .name = "FRTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for BLTask */
 osThreadId_t BLTaskHandle;
 const osThreadAttr_t BLTask_attributes = {
-    .name = "BLTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityNormal,
+  .name = "BLTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for BRTask */
 osThreadId_t BRTaskHandle;
 const osThreadAttr_t BRTask_attributes = {
-    .name = "BRTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityNormal,
+  .name = "BRTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for cmdTask */
 osThreadId_t cmdTaskHandle;
 const osThreadAttr_t cmdTask_attributes = {
-    .name = "cmdTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityNormal,
+  .name = "cmdTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for moveDistObsTask */
 osThreadId_t moveDistObsTaskHandle;
 const osThreadAttr_t moveDistObsTask_attributes = {
-    .name = "moveDistObsTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityNormal,
+  .name = "moveDistObsTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for turnATask */
 osThreadId_t turnATaskHandle;
 const osThreadAttr_t turnATask_attributes = {
-    .name = "turnATask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityNormal,
-};
-/* Definitions for TDTask */
-osThreadId_t TDTaskHandle;
-const osThreadAttr_t TDTask_attributes = {
-    .name = "TDTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityLow,
+  .name = "turnATask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for turnBTask */
 osThreadId_t turnBTaskHandle;
 const osThreadAttr_t turnBTask_attributes = {
-    .name = "turnBTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityNormal,
+  .name = "turnBTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for GHTask */
 osThreadId_t GHTaskHandle;
 const osThreadAttr_t GHTask_attributes = {
-    .name = "GHTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityNormal,
+  .name = "GHTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for AMTask */
 osThreadId_t AMTaskHandle;
 const osThreadAttr_t AMTask_attributes = {
-    .name = "AMTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityNormal,
+  .name = "AMTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* USER CODE BEGIN PV */
 
@@ -295,14 +288,12 @@ enum TASK_TYPE
   TASK_TURN_ANGLE,
   TASK_ADC,
   TASK_MOVE_OBS,
-  TASK_MOVE_OBS_MEM,
   TASK_TURN_A,
   TASK_TURN_B,
   TASK_TURN_IR,
   TASK_TURN_IR_CLOSE,
   TASK_GO_HOME,
   TASK_AM, // Just a cup of NIE Canteen avocado Milkshake, basically.
-  // TASK_FASTESTPATH,
   TASK_NONE
 };
 enum TASK_TYPE curTask = TASK_NONE, prevTask = TASK_NONE;
@@ -370,7 +361,6 @@ void runBRTask(void *argument);
 void runCmdTask(void *argument);
 void runMoveDistObsTask(void *argument);
 void runTurnATask(void *argument);
-void runTDTask(void *argument);
 void runTurnBTask(void *argument);
 void runGHTask(void *argument);
 void runAMTask(void *argument);
@@ -418,9 +408,9 @@ void RobotMoveUntilIRCloseDist(int isIR_R);
 /* USER CODE END 0 */
 
 /**
- * @brief  The application entry point.
- * @retval int
- */
+  * @brief  The application entry point.
+  * @retval int
+  */
 int main(void)
 {
   /* USER CODE BEGIN 1 */
@@ -570,9 +560,6 @@ int main(void)
   /* creation of turnATask */
   turnATaskHandle = osThreadNew(runTurnATask, NULL, &turnATask_attributes);
 
-  /* creation of TDTask */
-  TDTaskHandle = osThreadNew(runTDTask, NULL, &TDTask_attributes);
-
   /* creation of turnBTask */
   turnBTaskHandle = osThreadNew(runTurnBTask, NULL, &turnBTask_attributes);
 
@@ -606,22 +593,22 @@ int main(void)
 }
 
 /**
- * @brief System Clock Configuration
- * @retval None
- */
+  * @brief System Clock Configuration
+  * @retval None
+  */
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
   /** Configure the main internal regulator output voltage
-   */
+  */
   __HAL_RCC_PWR_CLK_ENABLE();
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
   /** Initializes the RCC Oscillators according to the specified parameters
-   * in the RCC_OscInitTypeDef structure.
-   */
+  * in the RCC_OscInitTypeDef structure.
+  */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
@@ -632,8 +619,9 @@ void SystemClock_Config(void)
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
-   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
@@ -646,10 +634,10 @@ void SystemClock_Config(void)
 }
 
 /**
- * @brief ADC1 Initialization Function
- * @param None
- * @retval None
- */
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_ADC1_Init(void)
 {
 
@@ -664,7 +652,7 @@ static void MX_ADC1_Init(void)
   /* USER CODE END ADC1_Init 1 */
 
   /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
-   */
+  */
   hadc1.Instance = ADC1;
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
@@ -683,7 +671,7 @@ static void MX_ADC1_Init(void)
   }
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-   */
+  */
   sConfig.Channel = ADC_CHANNEL_11;
   sConfig.Rank = 1;
   sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
@@ -694,13 +682,14 @@ static void MX_ADC1_Init(void)
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
+
 }
 
 /**
- * @brief ADC2 Initialization Function
- * @param None
- * @retval None
- */
+  * @brief ADC2 Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_ADC2_Init(void)
 {
 
@@ -715,7 +704,7 @@ static void MX_ADC2_Init(void)
   /* USER CODE END ADC2_Init 1 */
 
   /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
-   */
+  */
   hadc2.Instance = ADC2;
   hadc2.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc2.Init.Resolution = ADC_RESOLUTION_12B;
@@ -734,7 +723,7 @@ static void MX_ADC2_Init(void)
   }
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-   */
+  */
   sConfig.Channel = ADC_CHANNEL_12;
   sConfig.Rank = 1;
   sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
@@ -745,13 +734,14 @@ static void MX_ADC2_Init(void)
   /* USER CODE BEGIN ADC2_Init 2 */
 
   /* USER CODE END ADC2_Init 2 */
+
 }
 
 /**
- * @brief I2C1 Initialization Function
- * @param None
- * @retval None
- */
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_I2C1_Init(void)
 {
 
@@ -778,13 +768,14 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
 }
 
 /**
- * @brief TIM1 Initialization Function
- * @param None
- * @retval None
- */
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_TIM1_Init(void)
 {
 
@@ -851,13 +842,14 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 2 */
   HAL_TIM_MspPostInit(&htim1);
+
 }
 
 /**
- * @brief TIM2 Initialization Function
- * @param None
- * @retval None
- */
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_TIM2_Init(void)
 {
 
@@ -899,13 +891,14 @@ static void MX_TIM2_Init(void)
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
+
 }
 
 /**
- * @brief TIM3 Initialization Function
- * @param None
- * @retval None
- */
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_TIM3_Init(void)
 {
 
@@ -921,7 +914,7 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 16 - 1;
+  htim3.Init.Prescaler = 16-1;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = 65535;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -956,13 +949,14 @@ static void MX_TIM3_Init(void)
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
+
 }
 
 /**
- * @brief TIM6 Initialization Function
- * @param None
- * @retval None
- */
+  * @brief TIM6 Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_TIM6_Init(void)
 {
 
@@ -976,7 +970,7 @@ static void MX_TIM6_Init(void)
 
   /* USER CODE END TIM6_Init 1 */
   htim6.Instance = TIM6;
-  htim6.Init.Prescaler = 16 - 1;
+  htim6.Init.Prescaler = 16-1;
   htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim6.Init.Period = 65535;
   htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -993,13 +987,14 @@ static void MX_TIM6_Init(void)
   /* USER CODE BEGIN TIM6_Init 2 */
 
   /* USER CODE END TIM6_Init 2 */
+
 }
 
 /**
- * @brief TIM8 Initialization Function
- * @param None
- * @retval None
- */
+  * @brief TIM8 Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_TIM8_Init(void)
 {
 
@@ -1070,13 +1065,14 @@ static void MX_TIM8_Init(void)
   /* USER CODE BEGIN TIM8_Init 2 */
 
   /* USER CODE END TIM8_Init 2 */
+
 }
 
 /**
- * @brief USART3 Initialization Function
- * @param None
- * @retval None
- */
+  * @brief USART3 Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_USART3_UART_Init(void)
 {
 
@@ -1102,13 +1098,14 @@ static void MX_USART3_UART_Init(void)
   /* USER CODE BEGIN USART3_Init 2 */
 
   /* USER CODE END USART3_Init 2 */
+
 }
 
 /**
- * @brief GPIO Initialization Function
- * @param None
- * @retval None
- */
+  * @brief GPIO Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
@@ -1120,32 +1117,35 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOE, OLED_SCL_Pin | OLED_SDA_Pin | OLED_RST_Pin | OLED_DC_Pin | LED3_Pin | US_Trig_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOE, OLED_SCL_Pin|OLED_SDA_Pin|OLED_RST_Pin|OLED_DC_Pin
+                          |LED3_Pin|US_Trig_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, AIN2_Pin | AIN1_Pin | BIN1_Pin | BIN2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, AIN2_Pin|AIN1_Pin|BIN1_Pin|BIN2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : OLED_SCL_Pin OLED_SDA_Pin OLED_RST_Pin OLED_DC_Pin
                            LED3_Pin US_Trig_Pin */
-  GPIO_InitStruct.Pin = OLED_SCL_Pin | OLED_SDA_Pin | OLED_RST_Pin | OLED_DC_Pin | LED3_Pin | US_Trig_Pin;
+  GPIO_InitStruct.Pin = OLED_SCL_Pin|OLED_SDA_Pin|OLED_RST_Pin|OLED_DC_Pin
+                          |LED3_Pin|US_Trig_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pins : AIN2_Pin AIN1_Pin */
-  GPIO_InitStruct.Pin = AIN2_Pin | AIN1_Pin;
+  GPIO_InitStruct.Pin = AIN2_Pin|AIN1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : BIN1_Pin BIN2_Pin */
-  GPIO_InitStruct.Pin = BIN1_Pin | BIN2_Pin;
+  GPIO_InitStruct.Pin = BIN1_Pin|BIN2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
 }
 
 /* USER CODE BEGIN 4 */
@@ -1290,9 +1290,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     __ADD_COMMAND(cQueue, 12, val); // TR turn right max
   else if (aRxBuffer[0] == 'D' && aRxBuffer[1] == 'T')
     __ADD_COMMAND(cQueue, 14, val); // DT move until specified distance from obstacle
-  else if (aRxBuffer[0] == 'T' && aRxBuffer[1] == 'D')
-    __ADD_COMMAND(cQueue, 15, val); // TD move until specified distance from obstacle and record distance travelled,
-                                    // and travelled backward to staring point - for debugging only
+  // else if (aRxBuffer[0] == 'T' && aRxBuffer[1] == 'D')
+  //   __ADD_COMMAND(cQueue, 15, val); // TD move until specified distance from obstacle and record distance travelled,
+  //                                   // and travelled backward to staring point - for debugging only
   else if (aRxBuffer[0] == 'F' && aRxBuffer[1] == 'A')
     __ADD_COMMAND(cQueue, 88, val); // forward anti-clockwise rotation with variable
   else if (aRxBuffer[0] == 'F' && aRxBuffer[1] == 'C')
@@ -2442,10 +2442,10 @@ void runCmdTask(void *argument)
       curTask = TASK_MOVE_OBS;
       __PEND_CURCMD(curCmd);
       break;
-    case 15: // TD move until specified distance from obstacle, record the distance
-      curTask = TASK_MOVE_OBS_MEM;
-      __PEND_CURCMD(curCmd);
-      break;
+    // case 15: // TD move until specified distance from obstacle, record the distance
+    //   curTask = TASK_MOVE_OBS_MEM;
+    //   __PEND_CURCMD(curCmd);
+    //   break;
     case 88: // FAxxx, forward rotate left by xxx degree
     case 89: // FCxxx, forward rotate right by xxx degree
       __SET_MOTOR_DIRECTION(DIR_FORWARD);
@@ -2632,46 +2632,6 @@ void runTurnATask(void *argument)
     osDelay(1);
   }
   /* USER CODE END runTurnATask */
-}
-
-/* USER CODE BEGIN Header_runTDTask */
-/**
- * @brief Function implementing the TDTask thread.
- * @param argument: Not used
- * @retval None
- */
-/* USER CODE END Header_runTDTask */
-void runTDTask(void *argument)
-{
-  /* USER CODE BEGIN runTDTask */
-  /* Infinite loop */
-  for (;;)
-  {
-    if (curTask != TASK_MOVE_OBS_MEM)
-      osDelay(1000);
-    else
-    {
-      // for debugging TD task only: save dist tick when travelling until stop given distance from obstacle
-      uint16_t savedDistTick_TD = 0;
-      targetDist = (float)curCmd.val;
-
-      RobotMoveDistObstacleMem(&savedDistTick_TD, &targetDist, SPEED_MODE_2);
-      RobotMoveTick(&savedDistTick_TD, DIR_BACKWARD, SPEED_MODE_2);
-
-      __ON_TASK_END(&htim8, prevTask, curTask);
-      clickOnce = 0;
-
-      if (__COMMAND_QUEUE_IS_EMPTY(cQueue))
-      {
-        __CLEAR_CURCMD(curCmd);
-        __ACK_TASK_DONE(&huart3, rxMsg);
-      }
-      else
-        __READ_COMMAND(cQueue, curCmd, rxMsg);
-    }
-    osDelay(1);
-  }
-  /* USER CODE END runTDTask */
 }
 
 /* USER CODE BEGIN Header_runTurnBTask */
@@ -2934,20 +2894,19 @@ void runAMTask(void *argument)
 }
 
 /**
- * @brief  Period elapsed callback in non blocking mode
- * @note   This function is called  when TIM4 interrupt took place, inside
- * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
- * a global variable "uwTick" used as application time base.
- * @param  htim : TIM handle
- * @retval None
- */
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM4 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   /* USER CODE BEGIN Callback 0 */
 
   /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM4)
-  {
+  if (htim->Instance == TIM4) {
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
@@ -2956,9 +2915,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 }
 
 /**
- * @brief  This function is executed in case of error occurrence.
- * @retval None
- */
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
@@ -2970,14 +2929,14 @@ void Error_Handler(void)
   /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef USE_FULL_ASSERT
+#ifdef  USE_FULL_ASSERT
 /**
- * @brief  Reports the name of the source file and the source line number
- *         where the assert_param error has occurred.
- * @param  file: pointer to the source file name
- * @param  line: assert_param error line source number
- * @retval None
- */
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
