@@ -376,20 +376,19 @@ void runGHTask(void *argument);
 void runAMTask(void *argument);
 
 /* USER CODE BEGIN PFP */
+
+// PID controller
 void PIDConfigInit(PIDConfig *cfg, const float Kp, const float Ki, const float Kd);
 void PIDConfigReset(PIDConfig *cfg);
-
+// Straight line movement
 void StraightLineMove(const uint8_t speedMode);
 void StraightLineMoveSpeedScale(const uint8_t speedMode, float *speedScale);
 void RobotMoveDist(float *targetDist, const uint8_t dir, const uint8_t speedMode);
 void RobotMoveTick(uint16_t *targetTick, const uint8_t dir, uint8_t speedMode);
 void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode);
 void RobotMoveDistObstacleMem(uint16_t *savedDistTick, float *targetDist, const uint8_t speedMode);
-
+// Robot turn
 void RobotTurn(float *targetAngle);
-void RobotTurnFastest(float *targetAngle);
-void RobotMoveUntilIROvershoot(int isIR_R);
-void RobotMoveUntilIRCloseDist(int isIR_R);
 
 // For Task 2
 // Turn A
@@ -399,11 +398,17 @@ void RobotTurnFA90();
 void RobotTurnFC90();
 void RobotTurnFA180();
 void RobotTurnFC180();
-// Turn B
+// Turn B - Outdoor
 void RobotTurnFR30();
 void RobotTurnFL30();
-
+// Turn B - Indoor
+void RobotTurnFR00();
+void RobotTurnFL00();
+// UltraSonic sensor read
 void HCSR04_Read(void);
+// IR sensor read and movement
+void RobotMoveUntilIROvershoot(int isIR_R);
+void RobotMoveUntilIRCloseDist(int isIR_R);
 
 /* USER CODE END PFP */
 
@@ -1297,17 +1302,17 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   else if (aRxBuffer[0] == 'B' && aRxBuffer[1] == 'C')
     __ADD_COMMAND(cQueue, 91, val); // backward clockwise rotation with variable
   else if (aRxBuffer[0] == 'T' && aRxBuffer[1] == 'A')
-    __ADD_COMMAND(cQueue, 92, val);
+    __ADD_COMMAND(cQueue, 92, val); // Turn A - Task 2 1st obstacle
   else if (aRxBuffer[0] == 'I' && aRxBuffer[1] == 'R')
-    __ADD_COMMAND(cQueue, 93, val);
+    __ADD_COMMAND(cQueue, 93, val); // Robot move until IR overshoot - for debugging only
   else if (aRxBuffer[0] == 'I' && aRxBuffer[1] == 'C')
-    __ADD_COMMAND(cQueue, 94, val);
+    __ADD_COMMAND(cQueue, 94, val); // Robot move until IR detect close distance obstacle - for debugging only
   else if (aRxBuffer[0] == 'T' && aRxBuffer[1] == 'B')
-    __ADD_COMMAND(cQueue, 95, val);
+    __ADD_COMMAND(cQueue, 95, val); // Turn B - Task 2 2nd obstacle
   else if (aRxBuffer[0] == 'G' && aRxBuffer[1] == 'H')
-    __ADD_COMMAND(cQueue, 96, val);
+    __ADD_COMMAND(cQueue, 96, val); // Go Home - Task 2 go back to carpark
   else if (aRxBuffer[0] == 'A' && aRxBuffer[1] == 'M')
-    __ADD_COMMAND(cQueue, 97, val);
+    __ADD_COMMAND(cQueue, 97, val); // Avocado Milkshake - use after Turn A to straighten the robot
   if (!__COMMAND_QUEUE_IS_EMPTY(cQueue))
   {
     __READ_COMMAND(cQueue, curCmd, rxMsg);
@@ -1500,26 +1505,6 @@ void RobotTurn(float *targetAngle)
   __RESET_SERVO_TURN(&htim1);
 }
 
-void RobotTurnFastest(float *targetAngle)
-{
-  angleNow = 0;
-  gyroZ = 0;
-  last_curTask_tick = HAL_GetTick();
-  do
-  {
-    if (HAL_GetTick() - last_curTask_tick >= 10)
-    { // sample gyro every 10ms
-      __Gyro_Read_Z(&hi2c1, readGyroZData, gyroZ);
-      angleNow += gyroZ / GRYO_SENSITIVITY_SCALE_FACTOR_2000DPS * 0.01;
-      if (abs(angleNow - *targetAngle) < 0.01)
-        break;
-      last_curTask_tick = HAL_GetTick();
-    }
-  } while (1);
-  __SET_MOTOR_DUTY(&htim8, 0, 0);
-  __RESET_SERVO_TURN_FAST(&htim1);
-}
-
 // RobotMoveDistObstacle must be called within a task(eg. runFastestPath) and not within an interrupt(eg. UART, EXTI)
 // else osDelay won't work and TRI's timer interrupt can't be given chance to update obsDist_US
 void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode)
@@ -1547,6 +1532,8 @@ void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode)
       {
         speedScale = abs(obsDist_US - *targetDist) / 15; // slow down at 15cm
         speedScale = speedScale > 1 ? 1 : (speedScale < 0.75 ? 0.75 : speedScale);
+        if (abs(*targetDist - obsDist_US) <= 5)
+          speedScale *= 0.75;
         StraightLineMoveSpeedScale(SPEED_MODE_1, &speedScale);
 
         /*if (counter > 5)
@@ -1565,6 +1552,8 @@ void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode)
       {
         speedScale = abs(obsDist_US - *targetDist) / 15; // slow down at 15cm
         speedScale = speedScale > 1 ? 1 : (speedScale < 0.4 ? 0.4 : speedScale);
+        if (abs(*targetDist - obsDist_US) <= 5)
+          speedScale *= 0.75;
         StraightLineMoveSpeedScale(SPEED_MODE_2, &speedScale);
       }
 
