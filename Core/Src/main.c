@@ -1504,7 +1504,7 @@ void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode)
       {
         speedScale = abs(obsDist_US - *targetDist) / 15; // slow down at 15cm
         speedScale = speedScale > 1 ? 1 : (speedScale < 0.75 ? 0.75 : speedScale);
-        if (abs(*targetDist - obsDist_US) <= 5)
+        if (abs(*targetDist - obsDist_US) <= 5) // slow down when the distance between obstacle and robot is less than 5cm
           speedScale *= 0.75;
         StraightLineMoveSpeedScale(SPEED_MODE_1, &speedScale);
 
@@ -1524,7 +1524,7 @@ void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode)
       {
         speedScale = abs(obsDist_US - *targetDist) / 15; // slow down at 15cm
         speedScale = speedScale > 1 ? 1 : (speedScale < 0.4 ? 0.4 : speedScale);
-        if (abs(*targetDist - obsDist_US) <= 5)
+        if (abs(*targetDist - obsDist_US) <= 5) // slow down when the distance between obstacle and robot is less than 5cm
           speedScale *= 0.75;
         StraightLineMoveSpeedScale(SPEED_MODE_2, &speedScale);
       }
