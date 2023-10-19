@@ -60,6 +60,7 @@ extern "C" {
 #define SPEED_MODE_T 0
 #define SPEED_MODE_1 1
 #define SPEED_MODE_2 2
+#define SPEED_MODE_3 3
 
 #define DIR_FORWARD 1
 #define DIR_BACKWARD 0
@@ -87,6 +88,10 @@ extern "C" {
 #define INIT_DUTY_SP2_L 3000
 #define INIT_DUTY_SP2_R 3000
 #define DUTY_SP2_RANGE 700
+
+#define INIT_DUTY_SP3_L 4000
+#define INIT_DUTY_SP3_R 4000
+#define DUTY_SP3_RANGE 800
 
 #define MIN_SPEED_SCALE 0.4 // INIT_DUTY_SP1_L / INIT_DUTY_SP2_L
 
@@ -198,6 +203,14 @@ extern "C" {
   correction = correction > DUTY_SP2_RANGE ? DUTY_SP2_RANGE : (correction < -DUTY_SP2_RANGE ? -DUTY_SP2_RANGE : correction); \
   newDutyL = INIT_DUTY_SP2_L + correction * dir;                                                                             \
   newDutyR = INIT_DUTY_SP2_R - correction * dir;                                                                             \
+})
+#define __PID_SPEED_3(cfg, error, correction, dir, newDutyL, newDutyR) ({                                                    \
+  correction = (cfg).Kp * error + (cfg).Ki * (cfg).ekSum + (cfg).Kd * ((cfg).ek1 - error);                                   \
+  (cfg).ek1 = error;                                                                                                         \
+  (cfg).ekSum += error;                                                                                                      \
+  correction = correction > DUTY_SP3_RANGE ? DUTY_SP3_RANGE : (correction < -DUTY_SP3_RANGE ? -DUTY_SP3_RANGE : correction); \
+  newDutyL = INIT_DUTY_SP3_L + correction * dir;                                                                             \
+  newDutyR = INIT_DUTY_SP3_R - correction * dir;                                                                             \
 })
 
   /*

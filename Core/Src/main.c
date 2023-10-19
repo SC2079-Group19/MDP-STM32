@@ -156,6 +156,13 @@ const osThreadAttr_t AMTask_attributes = {
     .stack_size = 128 * 4,
     .priority = (osPriority_t)osPriorityNormal,
 };
+/* Definitions for DZTask */
+osThreadId_t DZTaskHandle;
+const osThreadAttr_t DZTask_attributes = {
+    .name = "DZTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityNormal,
+};
 /* USER CODE BEGIN PV */
 
 uint8_t RX_BUFFER_SIZE = 5;
@@ -222,7 +229,7 @@ typedef struct _pidConfig
   float ekSum;
 } PIDConfig;
 
-PIDConfig pidSlow, pidTSlow, pidFast;
+PIDConfig pidSlow, pidTSlow, pidFast, pidZoomZoom;
 
 typedef struct _commandConfig
 {
@@ -291,6 +298,7 @@ enum TASK_TYPE
   TASK_TURN_ANGLE,
   TASK_ADC,
   TASK_MOVE_OBS,
+  TASK_MOVE_OBS_ZOOMZOOM,
   TASK_TURN_A,
   TASK_TURN_B,
   TASK_TURN_IR,
@@ -358,6 +366,7 @@ void runTurnATask(void *argument);
 void runTurnBTask(void *argument);
 void runGHTask(void *argument);
 void runAMTask(void *argument);
+void runDZTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -486,6 +495,7 @@ int main(void)
   PIDConfigInit(&pidTSlow, 2.1, 0.045, 0.8);
   PIDConfigInit(&pidSlow, 2.1, 0.045, 0.8);
   PIDConfigInit(&pidFast, 1.1, 0.05, 0.3);
+  PIDConfigInit(&pidZoomZoom, 0.6, 0.05, 0.2);
 
   // UART Rx
   HAL_UART_Receive_IT(&huart3, aRxBuffer, RX_BUFFER_SIZE);
@@ -556,6 +566,9 @@ int main(void)
 
   /* creation of AMTask */
   AMTaskHandle = osThreadNew(runAMTask, NULL, &AMTask_attributes);
+
+  /* creation of DZTask */
+  DZTaskHandle = osThreadNew(runDZTask, NULL, &DZTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -1195,6 +1208,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     PIDConfigReset(&pidTSlow);
     PIDConfigReset(&pidSlow);
     PIDConfigReset(&pidFast);
+    PIDConfigReset(&pidZoomZoom);
     curDistTick = 0;
     if (__COMMAND_QUEUE_IS_EMPTY(cQueue))
     {
@@ -1215,6 +1229,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     PIDConfigReset(&pidTSlow);
     PIDConfigReset(&pidSlow);
     PIDConfigReset(&pidFast);
+    PIDConfigReset(&pidZoomZoom);
     curDistTick = 0;
     if (__COMMAND_QUEUE_IS_EMPTY(cQueue))
     {
@@ -1265,6 +1280,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     __ADD_COMMAND(cQueue, 12, val); // TR turn right max
   else if (aRxBuffer[0] == 'D' && aRxBuffer[1] == 'T')
     __ADD_COMMAND(cQueue, 14, val); // DT move until specified distance from obstacle
+  else if (aRxBuffer[0] == 'D' && aRxBuffer[1] == 'Z')
+    __ADD_COMMAND(cQueue, 15, val); // DZ move until specified distance from obstacle, but zoomzoom
   else if (aRxBuffer[0] == 'F' && aRxBuffer[1] == 'A')
     __ADD_COMMAND(cQueue, 88, val); // forward anti-clockwise rotation with variable
   else if (aRxBuffer[0] == 'F' && aRxBuffer[1] == 'C')
@@ -1334,6 +1351,8 @@ void StraightLineMove(const uint8_t speedMode)
 
   if (speedMode == SPEED_MODE_T)
     __PID_SPEED_T(pidTSlow, angleNow, correction, dir, newDutyL, newDutyR);
+  else if (speedMode == SPEED_MODE_3)
+    __PID_SPEED_3(pidZoomZoom, angleNow, correction, dir, newDutyL, newDutyR);
   else if (speedMode == SPEED_MODE_2)
     __PID_SPEED_2(pidFast, angleNow, correction, dir, newDutyL, newDutyR);
   else if (speedMode == SPEED_MODE_1)
@@ -1356,6 +1375,7 @@ void RobotMoveDist(float *targetDist, const uint8_t dir, const uint8_t speedMode
   PIDConfigReset(&pidTSlow);
   PIDConfigReset(&pidSlow);
   PIDConfigReset(&pidFast);
+  PIDConfigReset(&pidZoomZoom);
   curDistTick = 0;
   dist_dL = 0;
   __GET_TARGETTICK(*targetDist, targetDistTick);
@@ -1407,6 +1427,7 @@ void RobotMoveTick(uint16_t *targetTick, const uint8_t dir, uint8_t speedMode) /
   PIDConfigReset(&pidTSlow);
   PIDConfigReset(&pidSlow);
   PIDConfigReset(&pidFast);
+  PIDConfigReset(&pidZoomZoom);
   curDistTick = 0;
   dist_dL = 0;
 
@@ -1453,6 +1474,8 @@ void StraightLineMoveSpeedScale(const uint8_t speedMode, float *speedScale)
     __PID_SPEED_1(pidSlow, angleNow, correction, dir, newDutyL, newDutyR);
   else if (speedMode == SPEED_MODE_2)
     __PID_SPEED_2(pidFast, angleNow, correction, dir, newDutyL, newDutyR);
+  else if (speedMode == SPEED_MODE_3)
+    __PID_SPEED_3(pidZoomZoom, angleNow, correction, dir, newDutyL, newDutyR);
 
   __SET_MOTOR_DUTY(&htim8, newDutyL * (*speedScale), newDutyR * (*speedScale));
 }
@@ -1486,6 +1509,7 @@ void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode)
   PIDConfigReset(&pidTSlow);
   PIDConfigReset(&pidSlow);
   PIDConfigReset(&pidFast);
+  PIDConfigReset(&pidZoomZoom);
   obsDist_US = 1000;
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2); // Ultrasonic sensor start
   last_curTask_tick = HAL_GetTick();
@@ -1504,7 +1528,9 @@ void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode)
       {
         speedScale = abs(obsDist_US - *targetDist) / 15; // slow down at 15cm
         speedScale = speedScale > 1 ? 1 : (speedScale < 0.75 ? 0.75 : speedScale);
-        if (abs(*targetDist - obsDist_US) <= 5) // slow down when the distance between obstacle and robot is less than 5cm
+        if (abs(*targetDist - obsDist_US) <= 2) // slow down when the distance between obstacle and robot is less than 2cm
+          speedScale *= 0.5;
+        else if ((abs(*targetDist - obsDist_US) > 2) && (abs(*targetDist - obsDist_US) <= 5)) // slow down when the distance between obstacle and robot is less than 5cm
           speedScale *= 0.75;
         StraightLineMoveSpeedScale(SPEED_MODE_1, &speedScale);
 
@@ -1520,13 +1546,25 @@ void RobotMoveDistObstacle(float *targetDist, const uint8_t speedMode)
           oldspeed = speedScale;
         }*/
       }
-      else
+      else if (speedMode == SPEED_MODE_2)
       {
         speedScale = abs(obsDist_US - *targetDist) / 15; // slow down at 15cm
         speedScale = speedScale > 1 ? 1 : (speedScale < 0.4 ? 0.4 : speedScale);
-        if (abs(*targetDist - obsDist_US) <= 5) // slow down when the distance between obstacle and robot is less than 5cm
+        if (abs(*targetDist - obsDist_US) <= 2) // slow down when the distance between obstacle and robot is less than 5cm
+          speedScale *= 0.5;
+        else if ((abs(*targetDist - obsDist_US) > 2) && (abs(*targetDist - obsDist_US) <= 5)) // slow down when the distance between obstacle and robot is less than 5cm
           speedScale *= 0.75;
         StraightLineMoveSpeedScale(SPEED_MODE_2, &speedScale);
+      }
+      else if (speedMode == SPEED_MODE_3)
+      {
+        speedScale = abs(obsDist_US - *targetDist) / 15; // slow down at 15cm
+        speedScale = speedScale > 1 ? 1 : (speedScale < 0.4 ? 0.4 : speedScale);
+        if (abs(*targetDist - obsDist_US) <= 2) // slow down when the distance between obstacle and robot is less than 5cm
+          speedScale *= 0.5;
+        else if ((abs(*targetDist - obsDist_US) > 2) && (abs(*targetDist - obsDist_US) <= 5)) // slow down when the distance between obstacle and robot is less than 5cm
+          speedScale *= 0.75;
+        StraightLineMoveSpeedScale(SPEED_MODE_3, &speedScale);
       }
 
       last_curTask_tick = HAL_GetTick();
@@ -1549,6 +1587,7 @@ void RobotMoveUntilIROvershoot(int isIR_R)
   PIDConfigReset(&pidTSlow);
   PIDConfigReset(&pidSlow);
   PIDConfigReset(&pidFast);
+  PIDConfigReset(&pidZoomZoom);
   obsDist_IR_R = 0;
   obsDist_IR_L = 0;
   angleNow = 0;
@@ -1607,7 +1646,8 @@ void RobotMoveUntilIRCloseDist(int isIR_R)
 {
   PIDConfigReset(&pidTSlow);
   PIDConfigReset(&pidSlow);
-  PIDConfigReset(&pidFast);
+  PIDConfigReset(&pidSlow);
+  PIDConfigReset(&pidZoomZoom);
   obsDist_IR_R = 0xFF;
   obsDist_IR_L = 0xFF;
   angleNow = 0;
@@ -1736,7 +1776,7 @@ void RobotTurnFL30()
 // TODO: For Task 2 Turn B - indoor
 void RobotTurnFL00()
 {
-  targetDist = 11;
+  targetDist = 8;
   RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
   __SET_CMD_CONFIG(cfgs[CONFIG_FL00], &htim8, &htim1, targetAngle);
   RobotTurn(&targetAngle);
@@ -1750,7 +1790,7 @@ void RobotTurnFR00()
   RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
   __SET_CMD_CONFIG(cfgs[CONFIG_FR00], &htim8, &htim1, targetAngle);
   RobotTurn(&targetAngle);
-  targetDist = 2;
+  targetDist = 4;
   RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
 }
 
@@ -1869,6 +1909,7 @@ void runFWTask(void *argument)
         PIDConfigReset(&pidTSlow);
         PIDConfigReset(&pidSlow);
         PIDConfigReset(&pidFast);
+        PIDConfigReset(&pidZoomZoom);
 
         __SET_MOTOR_DIRECTION(DIR_FORWARD);
 
@@ -1957,6 +1998,7 @@ void runBWTask(void *argument)
         PIDConfigReset(&pidTSlow);
         PIDConfigReset(&pidSlow);
         PIDConfigReset(&pidFast);
+        PIDConfigReset(&pidZoomZoom);
 
         __SET_MOTOR_DIRECTION(DIR_BACKWARD);
 
@@ -2040,7 +2082,7 @@ void runFLTask(void *argument)
         RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
         break;
       case 00: // FL00 (indoor 3x2)
-        targetDist = 11;
+        targetDist = 8;
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         __SET_CMD_CONFIG(cfgs[CONFIG_FL00], &htim8, &htim1, targetAngle);
         RobotTurn(&targetAngle);
@@ -2095,7 +2137,7 @@ void runFRTask(void *argument)
         RobotMoveDist(&targetDist, DIR_FORWARD, SPEED_MODE_T);
         __SET_CMD_CONFIG(cfgs[CONFIG_FR00], &htim8, &htim1, targetAngle);
         RobotTurn(&targetAngle);
-        targetDist = 2;
+        targetDist = 4;
         RobotMoveDist(&targetDist, DIR_BACKWARD, SPEED_MODE_T);
         break;
       }
@@ -2283,6 +2325,10 @@ void runCmdTask(void *argument)
       break;
     case 14: // DT move until specified distance from obstacle
       curTask = TASK_MOVE_OBS;
+      __PEND_CURCMD(curCmd);
+      break;
+    case 15: // DZ move until specified distance from obstacle, but with zoomzoom config
+      curTask = TASK_MOVE_OBS_ZOOMZOOM;
       __PEND_CURCMD(curCmd);
       break;
     case 88: // FAxxx, forward rotate left by xxx degree
@@ -2914,6 +2960,41 @@ void runAMTask(void *argument)
     osDelay(1);
   }
   /* USER CODE END runAMTask */
+}
+
+/* USER CODE BEGIN Header_runDZTask */
+/**
+ * @brief Function implementing the DZTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_runDZTask */
+void runDZTask(void *argument)
+{
+  /* USER CODE BEGIN runDZTask */
+  for (;;)
+  {
+    if (curTask != TASK_MOVE_OBS_ZOOMZOOM)
+      osDelay(1000);
+    else
+    {
+      targetDist = (float)curCmd.val;
+      RobotMoveDistObstacle(&targetDist, SPEED_MODE_3);
+
+      __ON_TASK_END(&htim8, prevTask, curTask);
+      clickOnce = 0;
+
+      if (__COMMAND_QUEUE_IS_EMPTY(cQueue))
+      {
+        __CLEAR_CURCMD(curCmd);
+        __ACK_TASK_DONE(&huart3, rxMsg);
+      }
+      else
+        __READ_COMMAND(cQueue, curCmd, rxMsg);
+    }
+    osDelay(1);
+  }
+  /* USER CODE END runDZTask */
 }
 
 /**
