@@ -47,11 +47,16 @@ Each command consists of 5 characters.
 
 #### TA: Task 2 Turn A - 10x10 obstacle
 
+- `TA` + 01 /02
+
 #### AM: Avocado Milkshake - the turn following Turn A
 
-We would like to express our gratitude to the creamy and delightful Avocado Milkshake from NIE canteen for keeping us fueled and motivated during the endless calibration and tuning of MDP tasks.
+- `AM` + 01 /02
+  _We would like to express our gratitude to the creamy and delightful Avocado Milkshake from NIE canteen for keeping us fueled and motivated during the endless calibration and tuning of MDP tasks._
 
 #### TB: Task 2 Turn B - 10x(variable length) obstacle
+
+- `TB` + 01 /02
 
 #### GH: Task 2 Go Home command
 
