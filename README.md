@@ -52,7 +52,8 @@ Each command consists of 5 characters.
 #### AM: Avocado Milkshake - the turn following Turn A
 
 - `AM` + 01 /02
-  _We would like to express our gratitude to the creamy and delightful Avocado Milkshake from NIE canteen for keeping us fueled and motivated during the endless calibration and tuning of MDP tasks._
+
+_We would like to express our gratitude to the creamy and delightful Avocado Milkshake from NIE canteen for keeping us fueled and motivated during the endless calibration and tuning of MDP tasks._
 
 #### TB: Task 2 Turn B - 10x(variable length) obstacle
 
