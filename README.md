@@ -1,5 +1,9 @@
 # MDP-STM32
 
+## About
+
+This repository contains the STM32CubeIDE project for SC2079 Multi-Disciplinary Project (MDP).
+
 ## Commands
 
 Each command consists of 5 characters.
