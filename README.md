@@ -60,6 +60,8 @@ Each command consists of 5 characters.
 
 #### GH: Task 2 Go Home command
 
+- `GH` + 01 /02
+
 ## Acknowledgement:
 
 [CZ3004-Group-28/STM32_workspace](https://github.com/CZ3004-Group-28/STM32_workspace) by [wxchee (Wei Xian)](https://github.com/wxchee)
