@@ -37,11 +37,11 @@ Each command consists of 5 characters.
 
 ### Preemptive stop:
 
-#### ST
+- `ST`
 
 ### Reset turning angle:
 
-#### RS
+- `RS`
 
 ### Task-Specific Command (Task 2):
 
